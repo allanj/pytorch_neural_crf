@@ -22,6 +22,7 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
 ### Benchmark Performance
 
 * Experiments on the CoNLL-2003 dataset
+
     | Model| Dataset | Precision | Recall | F1 |
     |-------| ------- | :---------: | :------: | :--: |
     |Lample et al., (2016)| Dev Set | - | -|-|
@@ -31,14 +32,17 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
 
 * Experiments on the OntoNotes 5.0 dataset
     Since the dataset statistics is usually not clear in many literatures. We take a lot efforts to find the standard splits in the following table. 
+    
     |  | #Sent | #Entity | #Token | 
     |---|:----:|:----:|:----:|
     |Train|59,924 | 81,828|1,088,503|
     |Dev|8,528 | 11,066|147,724|
     |Test|8,262 | 11,257|152,728|
+    
     The above statistics follow most of the paper that have dataset statistics table presented (Chiu and Nichols, 2016; Li et al., 2017; Ghaddar and Langlais, 2018;). 
     
     The benchmark performance (without contextualized embeddings):
+    
     | Model| Dataset | Precision | Recall | F1 |
     |-------| ------- | :---------: | :------: | :--: |
     |LSTM-CNN (Chiu and Nichols, 2016)| Test Set | - | -|86.17|
@@ -46,6 +50,7 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
     |LSTM-CNN + lexicon (Chiu and Nichols, 2016)*| Test Set | - | -|86.28|
     |BRNN-CNN with parse tree (Li et al., 2017)*| Test Set | 88.0 | 86.5|87.21| 
     |BiLSTM-CRF + Robust Features (Ghaddar and Langlais, 2018)*| Test Set | - | -|87.95| 
+    
     \* indicates they use external features besides word embeddings. 
 
 
