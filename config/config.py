@@ -9,6 +9,7 @@ from common.instance import Instance
 from config.utils import PAD, START, STOP
 import torch
 from enum import Enum
+import os
 from termcolor import colored
 
 
@@ -105,6 +106,10 @@ class Config:
         if self.embedding_file is None:
             print("pretrain embedding in None, using random embedding")
             return None, self.embedding_dim
+        else:
+            exists = os.path.isfile(self.embedding_file)
+            if not exists:
+                raise FileNotFoundError("The embedding file does not exists")
         embedding_dim = -1
         embedding = dict()
         with open(self.embedding_file, 'r', encoding='utf-8') as file:
