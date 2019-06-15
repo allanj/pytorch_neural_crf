@@ -9,13 +9,12 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
 
 ### Usage
 1. Put the Glove embedding file (`glove.6B.100d.txt`) under `data` directory (You can also use ELMo/BERT/Flair, further details will be provided.)
-2. Create two folders: `model_files` and `results` to save the models and results, respectively.
-3. Simply run the following command and you can obtain results comparable to the benchmark above.
+2. Simply run the following command and you can obtain results comparable to the benchmark above.
     ```bash
     python3.6 main.py
     ```
     
-### Using ELMo/BERT/Flair
+### Using ELMo/BERT/Flair (Cont.)
 1. Copy the vector files to the `data/conll-2003` folder.
     
 
