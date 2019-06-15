@@ -29,12 +29,12 @@ def setSeed(opt, seed):
 
 def parse_arguments(parser):
     ###Training Hyperparameters
-    parser.add_argument('--mode', type=str, default='test', choices=["train","test"], help="training mode or testing mode")
-    parser.add_argument('--device', type=str, default="cuda:0", choices=['cpu','cuda:0','cuda:1','cuda:2'],help="GPU/CPU devices")
+    parser.add_argument('--mode', type=str, default='train', choices=["train","test"], help="training mode or testing mode")
+    parser.add_argument('--device', type=str, default="cpu", choices=['cpu','cuda:0','cuda:1','cuda:2'],help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
     parser.add_argument('--digit2zero', action="store_true", default=True, help="convert the number to 0, make it true is better")
     parser.add_argument('--dataset', type=str, default="conll2003")
-    parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt")
+    parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt", help="change it to None if you want to use random embedding")
     # parser.add_argument('--embedding_file', type=str, default=None)
     parser.add_argument('--embedding_dim', type=int, default=100)
     parser.add_argument('--optimizer', type=str, default="sgd")
@@ -108,6 +108,7 @@ def learn_from_insts(config:Config, epoch: int, train_insts, dev_insts, test_ins
 
     model_folder = "model_files"
     res_folder = "results"
+
     model_name = model_folder + "/lstm_{}_crf_{}_{}_dep_{}_elmo_{}_lr_{}.m".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
     res_name = res_folder + "/lstm_{}_crf_{}_{}_dep_{}_elmo_{}_lr_{}.results".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
     print("[Info] The model will be saved to: %s" % (model_name))
