@@ -42,11 +42,11 @@ def parse_arguments(parser):
     parser.add_argument('--momentum', type=float, default=0.0)
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
-    parser.add_argument('--batch_size', type=int, default=10)
-    parser.add_argument('--num_epochs', type=int, default=100)
-    parser.add_argument('--train_num', type=int, default=-1)
-    parser.add_argument('--dev_num', type=int, default=-1)
-    parser.add_argument('--test_num', type=int, default=-1)
+    parser.add_argument('--batch_size', type=int, default=10, help="default batch size is 10 (works well)")
+    parser.add_argument('--num_epochs', type=int, default=100, help="Usually we set to 100.")
+    parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
+    parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
+    parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
 
     ##model hyperparameter
     parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM")
@@ -54,7 +54,7 @@ def parse_arguments(parser):
     ##NOTE: this dropout applies to many places
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
-    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "bert", "elmo", "flair"], help="contextual word embedding")
+    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "bert", "elmo", "flair"], help="contextual word embedding (not well supported yet)")
 
 
 
@@ -204,11 +204,10 @@ def write_results(filename:str, insts):
     for inst in insts:
         for i in range(len(inst.input)):
             words = inst.input.words
-            tags = inst.input.pos_tags
             output = inst.output
             prediction = inst.prediction
             assert  len(output) == len(prediction)
-            f.write("{}\t{}\t{}\t{}\t{}\n".format(i, words[i], tags[i], output[i], prediction[i]))
+            f.write("{}\t{}\t{}\t{}\n".format(i, words[i], output[i], prediction[i]))
         f.write("\n")
     f.close()
 
@@ -225,9 +224,9 @@ def main():
     reader = Reader(conf.digit2zero)
     setSeed(opt, conf.seed)
 
-    trains = reader.read_conll(conf.train_file, conf.train_num, True)
-    devs = reader.read_conll(conf.dev_file, conf.dev_num, False)
-    tests = reader.read_conll(conf.test_file, conf.test_num, False)
+    trains = reader.read_txt(conf.train_file, conf.train_num, True)
+    devs = reader.read_txt(conf.dev_file, conf.dev_num, False)
+    tests = reader.read_txt(conf.test_file, conf.test_num, False)
 
     if conf.context_emb != ContextEmb.none:
         print('Loading the elmo vectors for all datasets.')

@@ -16,40 +16,6 @@ class Reader:
         self.digit2zero = digit2zero
         self.vocab = set()
 
-    def read_conll(self, file: str, number: int = -1, is_train: bool = True) -> List[Instance]:
-        print("Reading file: " + file)
-        insts = []
-        # vocab = set() ## build the vocabulary
-        with open(file, 'r', encoding='utf-8') as f:
-            words = []
-            labels = []
-            tags = []
-            for line in tqdm(f.readlines()):
-                line = line.rstrip()
-                if line == "":
-                    insts.append(Instance(Sentence(words, tags), labels))
-                    words = []
-                    labels = []
-                    tags = []
-                    if len(insts) == number:
-                        break
-                    continue
-                # if "conll2003" in file:
-                #     word, pos, head, dep_label, label = line.split()
-                # else:
-                vals = line.split()
-                word = vals[1]
-                pos = vals[3]
-                label = vals[10]
-                if self.digit2zero:
-                    word = re.sub('\d', '0', word) # replace digit with 0.
-                words.append(word)
-                tags.append(pos)
-                self.vocab.add(word)
-                labels.append(label)
-        print("number of sentences: {}".format(len(insts)))
-        return insts
-
     def read_txt(self, file: str, number: int = -1, is_train: bool = True) -> List[Instance]:
         print("Reading file: " + file)
         insts = []
@@ -57,28 +23,19 @@ class Reader:
         with open(file, 'r', encoding='utf-8') as f:
             words = []
             labels = []
-            tags = []
             for line in tqdm(f.readlines()):
                 line = line.rstrip()
                 if line == "":
-                    insts.append(Instance(Sentence(words, None, None, tags), labels))
+                    insts.append(Instance(Sentence(words), labels))
                     words = []
                     labels = []
-                    tags = []
                     if len(insts) == number:
                         break
                     continue
-                if "conll2003" in file:
-                    word, pos, label = line.split()
-                else:
-                    vals = line.split()
-                    word = vals[1]
-                    pos = vals[3]
-                    label = vals[10]
+                word, label = line.split()
                 if self.digit2zero:
                     word = re.sub('\d', '0', word) # replace digit with 0.
                 words.append(word)
-                tags.append(pos)
                 self.vocab.add(word)
                 labels.append(label)
         print("number of sentences: {}".format(len(insts)))

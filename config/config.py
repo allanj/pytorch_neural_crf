@@ -56,9 +56,9 @@ class Config:
         #     self.dev_file = "data/" + self.dataset + "/test.conllx"
         # self.test_file = "data/" + self.dataset + "/test.txt"
 
-        self.train_file = "data/" + self.dataset + "/train.conllx"
-        self.dev_file = "data/" + self.dataset + "/dev.conllx"
-        self.test_file = "data/" + self.dataset + "/test.conllx"
+        self.train_file = "data/" + self.dataset + "/train.txt"
+        self.dev_file = "data/" + self.dataset + "/dev.txt"
+        self.test_file = "data/" + self.dataset + "/test.txt"
         self.label2idx = {}
         self.idx2labels = []
         self.char2idx = {}
