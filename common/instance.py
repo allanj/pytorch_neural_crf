@@ -2,9 +2,19 @@
 # @author: Allan
 #
 from common.sentence import  Sentence
-class Instance:
+from typing import List
 
-    def __init__(self, input: Sentence, output):
+class Instance:
+    """
+    This class is the basic Instance for a datasample
+    """
+
+    def __init__(self, input: Sentence, output: List[str]) -> None:
+        """
+        Constructor for the instance.
+        :param input: sentence containing the words
+        :param output: a list of labels
+        """
         self.input = input
         self.output = output
         self.elmo_vec = None
