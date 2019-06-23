@@ -5,7 +5,7 @@
 import numpy as np
 from tqdm import tqdm
 from typing import List
-from common.instance import Instance
+from common import Instance
 from config.utils import PAD, START, STOP
 import torch
 from enum import Enum

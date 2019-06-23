@@ -3,8 +3,7 @@
 #
 
 from tqdm import tqdm
-from common.sentence import Sentence
-from common.instance import Instance
+from common import Sentence, Instance
 from typing import List
 import re
 import pickle

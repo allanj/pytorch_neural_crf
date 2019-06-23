@@ -5,10 +5,10 @@
 import torch
 import torch.nn as nn
 
-from config.utils import START, STOP, PAD, log_sum_exp_pytorch
+from config import START, STOP, PAD, log_sum_exp_pytorch
 from model.charbilstm import CharBiLSTM
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from config.config import ContextEmb
+from config import ContextEmb
 
 class NNCRF(nn.Module):
 

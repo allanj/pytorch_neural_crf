@@ -2,17 +2,14 @@
 import argparse
 import random
 import numpy as np
-from config.reader import Reader
-from config import eval
-from config.config import Config, ContextEmb
+from config import Reader, Config, ContextEmb, lr_decay, simple_batching, evaluate_num
 import time
-from model.lstmcrf import NNCRF
+from model import NNCRF
 import torch
 import torch.optim as optim
 import torch.nn as nn
-from config.utils import lr_decay, simple_batching
 from typing import List
-from common.instance import Instance
+from common import Instance
 from termcolor import colored
 import os
 
@@ -169,7 +166,7 @@ def evaluate_model(config:Config, model: NNCRF, batch_insts_ids, name:str, insts
         one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
         sorted_batch_insts = sorted(one_batch_insts, key=lambda inst: len(inst.input.words), reverse=True)
         batch_max_scores, batch_max_ids = model.decode(batch)
-        metrics += eval.evaluate_num(sorted_batch_insts, batch_max_ids, batch[-1], batch[1], config.idx2labels)
+        metrics += evaluate_num(sorted_batch_insts, batch_max_ids, batch[-1], batch[1], config.idx2labels)
         batch_id += 1
     p, total_predict, total_entity = metrics[0], metrics[1], metrics[2]
     precision = p * 1.0 / total_predict * 100 if total_predict != 0 else 0

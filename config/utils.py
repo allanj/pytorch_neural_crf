@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from typing import List
-from common.instance import Instance
+from common import Instance
 
 
 START = "<START>"
