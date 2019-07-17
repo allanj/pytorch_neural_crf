@@ -17,7 +17,7 @@ class Instance:
         """
         self.input = input
         self.output = output
-        self.elmo_vec = None
+        self.elmo_vec = None #used for loading the ELMo vector.
         self.word_ids = None
         self.char_ids = None
         self.output_ids = None

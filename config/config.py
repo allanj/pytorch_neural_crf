@@ -17,15 +17,18 @@ from termcolor import colored
 class ContextEmb(Enum):
     none = 0
     elmo = 1
-    bert = 2
-    flair = 3
+    bert = 2 # not support yet
+    flair = 3 # not support yet
 
 
 
 
 class Config:
     def __init__(self, args):
-
+        """
+        Construct the arguments and some hyperparameters
+        :param args:
+        """
         self.PAD = PAD
         self.B = "B-"
         self.I = "I-"
@@ -49,12 +52,6 @@ class Config:
         self.digit2zero = args.digit2zero
 
         self.dataset = args.dataset
-        # self.train_file = "data/" + self.dataset + "/train.txt"
-        # self.dev_file = "data/" + self.dataset + "/dev.txt"
-        # ## following datasets do not have development set
-        # if self.dataset in ("abc", "cnn", "mnb", "nbc", "p25", "pri", "voa"):
-        #     self.dev_file = "data/" + self.dataset + "/test.conllx"
-        # self.test_file = "data/" + self.dataset + "/test.txt"
 
         self.train_file = "data/" + self.dataset + "/train.txt"
         self.dev_file = "data/" + self.dataset + "/dev.txt"
@@ -89,15 +86,6 @@ class Config:
         self.charlstm_hidden_dim = 50
         self.use_char_rnn = args.use_char_rnn
 
-
-
-
-
-
-    # def print(self):
-    #     print("")
-    #     print("\tuse gpu: " + )
-
     '''
       read all the  pretrain embeddings
     '''
@@ -130,8 +118,14 @@ class Config:
                 embedding[first_col] = embedd
         return embedding, embedding_dim
 
-
-    def build_word_idx(self, train_insts, dev_insts, test_insts):
+    def build_word_idx(self, train_insts: List[Instance], dev_insts: List[Instance], test_insts: List[Instance]) -> None:
+        """
+        Build the vocab 2 idx for all instances
+        :param train_insts:
+        :param dev_insts:
+        :param test_insts:
+        :return:
+        """
         self.word2idx = dict()
         self.idx2word = []
         self.word2idx[self.PAD] = 0
@@ -159,6 +153,7 @@ class Config:
                         self.char2idx[c] = len(self.idx2char)
                         self.idx2char.append(c)
         self.num_char = len(self.idx2char)
+
     '''
         build the embedding table
         obtain the word2idx and idx2word as well.

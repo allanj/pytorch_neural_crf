@@ -4,7 +4,7 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
 
 ### Requirements
 * Python 3.6
-* Tested on PyTorch 0.4.1 (should also work for 1.0+ version)
+* Tested on PyTorch >=0.4.1
 
 
 ### Usage
@@ -20,8 +20,12 @@ If you have a different format, simply modify the reader in `config/reader.py`.
 3. Change the `dataset` argument to `YourData` in the `main.py`.
   
     
-### Using ELMo/BERT/Flair (Cont.)
-1. Copy the vector files to the `data/conll-2003` folder.
+### Using ELMo (and BERT)
+There are two ways to import the ELMo and BERT representations. We can either __preprocess the input files into vectors and load them in the program__ or __use the ELMo/BERT model to _forward_ the input tokens everytime__. The latter approach allows us to fine tune the parameters in ELMo and BERT. But the memory consumption is pretty high. For the purpose of most practical use case, I simply implemented the first method.
+1. Run the scripts under `preprocess/get_elmo_vec.py`. As a result, you get the vector files for your datasets.
+2. Run the main file with command: `python3.6 main.py --context_emb elmo`. You are good to go.
+
+For using BERT, it would be a similar manner. Let me know if you want further functionality. Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/lstmcrf.py#L82)). You may not need concatenation for BERT.
     
 
 ### Benchmark Performance
@@ -29,13 +33,14 @@ If you have a different format, simply modify the reader in `config/reader.py`.
 Empirically, although `ADAM` optimizer converges faster, we found that using `SGD` with learning rate of `0.01` and `100` epochs is better than `ADAM`.
 
 * Experiments on the CoNLL-2003 dataset
-
+    
     | Model| Dataset | Precision | Recall | F1 |
     |-------| ------- | :---------: | :------: | :--: |
     |Lample et al., (2016)| Dev Set | - | -|-|
     |This Implementation (on GPU)| Dev Set | 94.99 | 94.85 |94.92|
     |Lample et al., (2016)| Test Set | - | -|90.94|
     |This Implementation (on GPU)| Test Set | 91.30  | 91.41 |**91.36**|
+    | This Implementation +ELMo| Test Set | 92.4  | 92.2 |**92.3**|
 
 * Experiments on the OntoNotes 5.0 dataset
     Since the dataset statistics is usually not clear in many literatures. We take a lot efforts to find the standard splits in the following table. 
@@ -62,6 +67,7 @@ Empirically, although `ADAM` optimizer converges faster, we found that using `SG
     |-------| ------- | :---------: | :------: | :--: |
     |LSTM-CNN (Chiu and Nichols, 2016)| Test Set | - | -|86.17|
     |BiLSTM-CRF (Our Implementation on GPU)| Test Set | 87.85 | 86.84 |**87.34**|
+    | Our Implementation  +ELMo| Test Set | 89.14| 88.59 |**88.87**|
     |LSTM-CNN + lexicon (Chiu and Nichols, 2016)*| Test Set | - | -|86.28|
     |BRNN-CNN with parse tree (Li et al., 2017)*| Test Set | 88.0 | 86.5|87.21| 
     |BiLSTM-CRF + Robust Features (Ghaddar and Langlais, 2018)*| Test Set | - | -|87.95| 

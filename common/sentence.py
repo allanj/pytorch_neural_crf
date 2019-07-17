@@ -22,15 +22,3 @@ class Sentence:
         return len(self.words)
 
 
-
-
-
-
-
-
-# if __name__ == "__main__":
-#
-#     words = ["a" ,"sdfsdf"]
-#     sent = Sentence(words)
-#
-#     print(len(sent))

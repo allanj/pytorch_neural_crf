@@ -65,7 +65,6 @@ class NNCRF(nn.Module):
 
         self.transition = nn.Parameter(init_transition)
 
-
     def neural_scoring(self, word_seq_tensor, word_seq_lens, batch_context_emb, char_inputs, char_seq_lens):
         """
         :param word_seq_tensor: (batch_size, sent_len)   NOTE: The word seq actually is already ordered before come here.
@@ -96,9 +95,6 @@ class NNCRF(nn.Module):
         lstm_out, _ = self.lstm(packed_words, None)
         lstm_out, _ = pad_packed_sequence(lstm_out, batch_first=True)  ## CARE: make sure here is batch_first, otherwise need to transpose.
         feature_out = self.drop_lstm(lstm_out)
-        ### TODO: dropout this lstm output or not, because ABB code do dropout.
-
-
 
         outputs = self.hidden2tag(feature_out)
 

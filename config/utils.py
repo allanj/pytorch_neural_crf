@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from typing import List
 from common import Instance
-
+import pickle
 
 START = "<START>"
 STOP = "<STOP>"
@@ -19,7 +19,6 @@ def log_sum_exp_pytorch(vec):
     maxScores[maxScores == -float("Inf")] = 0
     maxScoresExpanded = maxScores.view(vec.shape[0] ,1 , vec.shape[2]).expand(vec.shape[0], vec.shape[1], vec.shape[2])
     return maxScores + torch.log(torch.sum(torch.exp(vec - maxScoresExpanded), 1))
-
 
 
 def simple_batching(config, insts: List[Instance]):
@@ -44,10 +43,10 @@ def simple_batching(config, insts: List[Instance]):
     char_seq_len = torch.LongTensor([list(map(len, inst.input.words)) + [1] * (int(max_seq_len) - len(inst.input.words)) for inst in batch_data])
     max_char_seq_len = char_seq_len.max()
 
-    word_emb_tensor = None
+    context_emb_tensor = None
     if config.context_emb != ContextEmb.none:
         emb_size = insts[0].elmo_vec.shape[1]
-        word_emb_tensor = torch.zeros((batch_size, max_seq_len, emb_size))
+        context_emb_tensor = torch.zeros((batch_size, max_seq_len, emb_size))
 
     word_seq_tensor = torch.zeros((batch_size, max_seq_len), dtype=torch.long)
     label_seq_tensor =  torch.zeros((batch_size, max_seq_len), dtype=torch.long)
@@ -57,7 +56,7 @@ def simple_batching(config, insts: List[Instance]):
         word_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].word_ids)
         label_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].output_ids)
         if config.context_emb != ContextEmb.none:
-            word_emb_tensor[idx, :word_seq_len[idx], :] = torch.from_numpy(batch_data[idx].elmo_vec)
+            context_emb_tensor[idx, :word_seq_len[idx], :] = torch.from_numpy(batch_data[idx].elmo_vec)
 
         for word_idx in range(word_seq_len[idx]):
             char_seq_tensor[idx, word_idx, :char_seq_len[idx, word_idx]] = torch.LongTensor(batch_data[idx].char_ids[word_idx])
@@ -69,11 +68,8 @@ def simple_batching(config, insts: List[Instance]):
     char_seq_tensor = char_seq_tensor.to(config.device)
     word_seq_len = word_seq_len.to(config.device)
     char_seq_len = char_seq_len.to(config.device)
-    # if config.use_elmo:
-    #     word_emb_tensor = word_emb_tensor.to(config.device)
 
-    return word_seq_tensor, word_seq_len, word_emb_tensor, char_seq_tensor, char_seq_len, label_seq_tensor
-
+    return word_seq_tensor, word_seq_len, context_emb_tensor, char_seq_tensor, char_seq_len, label_seq_tensor
 
 
 def lr_decay(config, optimizer, epoch):
@@ -84,4 +80,19 @@ def lr_decay(config, optimizer, epoch):
     return optimizer
 
 
-
+def load_elmo_vec(file: str, insts: List[Instance]):
+    """
+    Load the elmo vectors and the vector will be saved within each instance with a member `elmo_vec`
+    :param file: the vector files for the ELMo vectors
+    :param insts: list of instances
+    :return:
+    """
+    f = open(file, 'rb')
+    all_vecs = pickle.load(f)  # variables come out in the order you put them in
+    f.close()
+    size = 0
+    for vec, inst in zip(all_vecs, insts):
+        inst.elmo_vec = vec
+        size = vec.shape[1]
+        assert(vec.shape[0] == len(inst.input.words))
+    return size

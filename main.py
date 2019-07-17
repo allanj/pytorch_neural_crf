@@ -12,6 +12,7 @@ from typing import List
 from common import Instance
 from termcolor import colored
 import os
+from config.utils import load_elmo_vec
 
 
 def setSeed(opt, seed):
@@ -51,7 +52,7 @@ def parse_arguments(parser):
     ##NOTE: this dropout applies to many places
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
-    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "bert", "elmo", "flair"], help="contextual word embedding (not well supported yet)")
+    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo"], help="contextual word embedding (not well supported yet)")
 
 
 
@@ -106,8 +107,8 @@ def learn_from_insts(config:Config, epoch: int, train_insts, dev_insts, test_ins
     model_folder = "model_files"
     res_folder = "results"
 
-    model_name = model_folder + "/lstm_{}_crf_{}_{}_dep_{}_elmo_{}_lr_{}.m".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
-    res_name = res_folder + "/lstm_{}_crf_{}_{}_dep_{}_elmo_{}_lr_{}.results".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
+    model_name = model_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.m".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
+    res_name = res_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.results".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
     print("[Info] The model will be saved to: %s" % (model_name))
     if not os.path.exists(model_folder):
         os.makedirs(model_folder)
@@ -226,10 +227,11 @@ def main():
     tests = reader.read_txt(conf.test_file, conf.test_num, False)
 
     if conf.context_emb != ContextEmb.none:
-        print('Loading the elmo vectors for all datasets.')
-        conf.context_emb_size = reader.load_elmo_vec(conf.train_file + "."+conf.context_emb.name+".vec", trains)
-        reader.load_elmo_vec(conf.dev_file  + "."+conf.context_emb.name+".vec", devs)
-        reader.load_elmo_vec(conf.test_file + "."+conf.context_emb.name+".vec", tests)
+        print('Loading the ELMo vectors for all datasets.')
+        conf.context_emb_size = load_elmo_vec(conf.train_file + "."+conf.context_emb.name+".vec", trains)
+        load_elmo_vec(conf.dev_file  + "."+conf.context_emb.name+".vec", devs)
+        load_elmo_vec(conf.test_file + "."+conf.context_emb.name+".vec", tests)
+
     conf.use_iobes(trains)
     conf.use_iobes(devs)
     conf.use_iobes(tests)
