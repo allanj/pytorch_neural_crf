@@ -2,7 +2,7 @@
 import argparse
 import random
 import numpy as np
-from config import Reader, Config, ContextEmb, lr_decay, simple_batching, evaluate_num
+from config import Reader, Config, ContextEmb, lr_decay, simple_batching, evaluate_batch_insts
 import time
 from model import NNCRF
 import torch
@@ -48,8 +48,6 @@ def parse_arguments(parser):
 
     ##model hyperparameter
     parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM")
-
-    ##NOTE: this dropout applies to many places
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
     parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo"], help="contextual word embedding (not well supported yet)")
@@ -75,6 +73,7 @@ def get_optimizer(config: Config, model: nn.Module):
         print("Illegal optimizer: {}".format(config.optimizer))
         exit(1)
 
+
 def batching_list_instances(config: Config, insts:List[Instance]):
     train_num = len(insts)
     batch_size = config.batch_size
@@ -86,16 +85,14 @@ def batching_list_instances(config: Config, insts:List[Instance]):
 
     return batched_data
 
-def learn_from_insts(config:Config, epoch: int, train_insts, dev_insts, test_insts):
-    # train_insts: List[Instance], dev_insts: List[Instance], test_insts: List[Instance], batch_size: int = 1
+
+def train_model(config:Config, epoch: int, train_insts: List[Instance], dev_insts : List[Instance], test_insts: List[Instance]):
     model = NNCRF(config)
     optimizer = get_optimizer(config, model)
     train_num = len(train_insts)
     print("number of instances: %d" % (train_num))
     print(colored("[Shuffled] Shuffle the training instance ids", "red"))
     random.shuffle(train_insts)
-
-
 
     batched_data = batching_list_instances(config, train_insts)
     dev_batches = batching_list_instances(config, dev_insts)
@@ -122,13 +119,10 @@ def learn_from_insts(config:Config, epoch: int, train_insts, dev_insts, test_ins
         if config.optimizer.lower() == "sgd":
             optimizer = lr_decay(config, optimizer, i)
         for index in np.random.permutation(len(batched_data)):
-        # for index in range(len(batched_data)):
             model.train()
-            batch_word, batch_wordlen, batch_context_emb, batch_char, batch_charlen, batch_label = batched_data[index]
-            loss = model.neg_log_obj(batch_word, batch_wordlen, batch_context_emb,batch_char, batch_charlen, batch_label)
+            loss = model(*batched_data[index])
             epoch_loss += loss.item()
             loss.backward()
-            # # torch.nn.utils.clip_grad_norm_(model.parameters(), config.clip) ##clipping the gradient
             optimizer.step()
             model.zero_grad()
 
@@ -157,7 +151,6 @@ def learn_from_insts(config:Config, epoch: int, train_insts, dev_insts, test_ins
     write_results(res_name, test_insts)
 
 
-
 def evaluate_model(config:Config, model: NNCRF, batch_insts_ids, name:str, insts: List[Instance]):
     ## evaluation
     metrics = np.asarray([0, 0, 0], dtype=int)
@@ -167,7 +160,7 @@ def evaluate_model(config:Config, model: NNCRF, batch_insts_ids, name:str, insts
         one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
         sorted_batch_insts = sorted(one_batch_insts, key=lambda inst: len(inst.input.words), reverse=True)
         batch_max_scores, batch_max_ids = model.decode(batch)
-        metrics += evaluate_num(sorted_batch_insts, batch_max_ids, batch[-1], batch[1], config.idx2labels)
+        metrics += evaluate_batch_insts(sorted_batch_insts, batch_max_ids, batch[-1], batch[1], config.idx2labels)
         batch_id += 1
     p, total_predict, total_entity = metrics[0], metrics[1], metrics[2]
     precision = p * 1.0 / total_predict * 100 if total_predict != 0 else 0
@@ -197,6 +190,7 @@ def test_model(config: Config, test_insts):
     evaluate_model(config, model, test_batches, "test", test_insts)
     write_results(res_name, test_insts)
 
+
 def write_results(filename:str, insts):
     f = open(filename, 'w', encoding='utf-8')
     for inst in insts:
@@ -222,9 +216,9 @@ def main():
     reader = Reader(conf.digit2zero)
     setSeed(opt, conf.seed)
 
-    trains = reader.read_txt(conf.train_file, conf.train_num, True)
-    devs = reader.read_txt(conf.dev_file, conf.dev_num, False)
-    tests = reader.read_txt(conf.test_file, conf.test_num, False)
+    trains = reader.read_txt(conf.train_file, conf.train_num)
+    devs = reader.read_txt(conf.dev_file, conf.dev_num)
+    tests = reader.read_txt(conf.test_file, conf.test_num)
 
     if conf.context_emb != ContextEmb.none:
         print('Loading the ELMo vectors for all datasets.')
@@ -237,15 +231,12 @@ def main():
     conf.use_iobes(tests)
     conf.build_label_idx(trains)
 
-
-
     conf.build_word_idx(trains, devs, tests)
     conf.build_emb_table()
 
-    ids_train = conf.map_insts_ids(trains)
-    ids_dev = conf.map_insts_ids(devs)
-    ids_test= conf.map_insts_ids(tests)
-
+    conf.map_insts_ids(trains)
+    conf.map_insts_ids(devs)
+    conf.map_insts_ids(tests)
 
     print("num chars: " + str(conf.num_char))
     # print(str(config.char2idx))
@@ -253,7 +244,7 @@ def main():
     print("num words: " + str(len(conf.word2idx)))
     # print(config.word2idx)
     if opt.mode == "train":
-        learn_from_insts(conf, conf.num_epochs, trains, devs, tests)
+        train_model(conf, conf.num_epochs, trains, devs, tests)
     else:
         ## Load the trained model.
         test_model(conf, tests)

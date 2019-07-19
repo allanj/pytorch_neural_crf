@@ -10,15 +10,17 @@ import re
 
 class Reader:
 
-
     def __init__(self, digit2zero:bool=True):
+        """
+        Read the dataset into Instance
+        :param digit2zero: convert the digits into 0, which is a common practice for LSTM-CRF.
+        """
         self.digit2zero = digit2zero
         self.vocab = set()
 
-    def read_txt(self, file: str, number: int = -1, is_train: bool = True) -> List[Instance]:
+    def read_txt(self, file: str, number: int = -1) -> List[Instance]:
         print("Reading file: " + file)
         insts = []
-        # vocab = set() ## build the vocabulary
         with open(file, 'r', encoding='utf-8') as f:
             words = []
             labels = []

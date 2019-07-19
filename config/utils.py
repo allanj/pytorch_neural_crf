@@ -1,18 +1,19 @@
 import numpy as np
 import torch
-from typing import List
+from typing import List, Tuple
 from common import Instance
 import pickle
+import torch.optim as optim
 
 START = "<START>"
 STOP = "<STOP>"
 PAD = "<PAD>"
 
 
-def log_sum_exp_pytorch(vec):
+def log_sum_exp_pytorch(vec: torch.Tensor) -> torch.Tensor:
     """
-
-    :param vec: [batchSize * from_label * to_label]
+    Calculate the log_sum_exp trick for the tensor.
+    :param vec: [batchSize * from_label * to_label].
     :return: [batchSize * to_label]
     """
     maxScores, idx = torch.max(vec, 1)
@@ -21,25 +22,24 @@ def log_sum_exp_pytorch(vec):
     return maxScores + torch.log(torch.sum(torch.exp(vec - maxScoresExpanded), 1))
 
 
-def simple_batching(config, insts: List[Instance]):
+def simple_batching(config, insts: List[Instance]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
     from config.config import ContextEmb
     """
-
-    :param config:
-    :param insts:
-    :return:
-        word_seq_tensor,
-        word_seq_len,
-        char_seq_tensor,
-        char_seq_len,
-        label_seq_tensor
+    batching these instances together and return tensors. The seq_tensors for word and char contain their word id and char id.
+    :return 
+        word_seq_tensor: Shape: (batch_size, max_seq_length)
+        word_seq_len: Shape: (batch_size), the length of each sentence in a batch.
+        context_emb_tensor: Shape: (batch_size, max_seq_length, context_emb_size)
+        char_seq_tensor: Shape: (batch_size, max_seq_len, max_char_seq_len)
+        char_seq_len: Shape: (batch_size, max_seq_len), 
+        label_seq_tensor: Shape: (batch_size, max_seq_length)
     """
     batch_size = len(insts)
     batch_data = sorted(insts, key=lambda inst: len(inst.input.words), reverse=True) ##object-based not direct copy
     word_seq_len = torch.LongTensor(list(map(lambda inst: len(inst.input.words), batch_data)))
     max_seq_len = word_seq_len.max()
-    ### TODO: the 1 here might be used later?? We will make this as padding, because later we have to do a deduction.
-    #### Use 1 here because the CharBiLSTM accepts
+
+    # NOTE: Use 1 here because the CharBiLSTM accepts
     char_seq_len = torch.LongTensor([list(map(len, inst.input.words)) + [1] * (int(max_seq_len) - len(inst.input.words)) for inst in batch_data])
     max_char_seq_len = char_seq_len.max()
 
@@ -72,7 +72,14 @@ def simple_batching(config, insts: List[Instance]):
     return word_seq_tensor, word_seq_len, context_emb_tensor, char_seq_tensor, char_seq_len, label_seq_tensor
 
 
-def lr_decay(config, optimizer, epoch):
+def lr_decay(config, optimizer: optim.Optimizer, epoch: int) -> optim.Optimizer:
+    """
+    Method to decay the learning rate
+    :param config: configuration
+    :param optimizer: optimizer
+    :param epoch: epoch number
+    :return:
+    """
     lr = config.learning_rate / (1 + config.lr_decay * (epoch - 1))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr

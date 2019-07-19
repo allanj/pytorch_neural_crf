@@ -3,8 +3,8 @@
 #
 import torch
 import torch.nn as nn
-import numpy as np
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from overrides import overrides
 
 
 class CharBiLSTM(nn.Module):
@@ -20,14 +20,13 @@ class CharBiLSTM(nn.Module):
         self.hidden = config.charlstm_hidden_dim
         self.dropout = nn.Dropout(config.dropout).to(self.device)
         self.char_embeddings = nn.Embedding(self.char_size, self.char_emb_size)
-        # self.char_embeddings.weight.data.copy_(torch.from_numpy(self.random_embedding(self.char_size, self.char_emb_size)))
         self.char_embeddings = self.char_embeddings.to(self.device)
-
         self.char_lstm = nn.LSTM(self.char_emb_size, self.hidden // 2 ,num_layers=1, batch_first=True, bidirectional=True).to(self.device)
 
-
-    def get_last_hiddens(self, char_seq_tensor, char_seq_len):
+    @overrides
+    def forward(self, char_seq_tensor: torch.Tensor, char_seq_len: torch.Tensor) -> torch.Tensor:
         """
+        Get the last hidden states of the LSTM
             input:
                 char_seq_tensor: (batch_size, sent_len, word_length)
                 char_seq_len: (batch_size, sent_len)
@@ -52,11 +51,5 @@ class CharBiLSTM(nn.Module):
         ## transpose because the first dimension is num_direction x num-layer
         hidden = char_hidden[0].transpose(1,0).contiguous().view(batch_size * sent_len, 1, -1)   ### before view, the size is ( batch_size * sent_len, 2, lstm_dimension) 2 means 2 direciton..
         return hidden[recover_idx].view(batch_size, sent_len, -1)
-
-
-
-    def forward(self, char_input, seq_lengths):
-        return self.get_last_hiddens(char_input, seq_lengths)
-
 
 

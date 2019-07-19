@@ -9,6 +9,9 @@ from config import START, STOP, PAD, log_sum_exp_pytorch
 from model.charbilstm import CharBiLSTM
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from config import ContextEmb
+from typing import Tuple
+from overrides import overrides
+
 
 class NNCRF(nn.Module):
 
@@ -20,15 +23,11 @@ class NNCRF(nn.Module):
         self.use_char = config.use_char_rnn
         self.context_emb = config.context_emb
 
-
-
         self.label2idx = config.label2idx
         self.labels = config.idx2labels
         self.start_idx = self.label2idx[START]
         self.end_idx = self.label2idx[STOP]
         self.pad_idx = self.label2idx[PAD]
-
-
 
         self.input_size = config.embedding_dim
         if self.context_emb != ContextEmb.none:
@@ -37,12 +36,8 @@ class NNCRF(nn.Module):
             self.char_feature = CharBiLSTM(config)
             self.input_size += config.charlstm_hidden_dim
 
-
-
-        vocab_size = len(config.word2idx)
         self.word_embedding = nn.Embedding.from_pretrained(torch.FloatTensor(config.word_embedding), freeze=False).to(self.device)
         self.word_drop = nn.Dropout(config.dropout).to(self.device)
-
 
         print("[Model Info] Input size to LSTM: {}".format(self.input_size))
         print("[Model Info] LSTM Hidden Size: {}".format(config.hidden_dim))
@@ -51,12 +46,12 @@ class NNCRF(nn.Module):
 
         self.drop_lstm = nn.Dropout(config.dropout).to(self.device)
 
-
         final_hidden_dim = config.hidden_dim
 
         print("[Model Info] Final Hidden Size: {}".format(final_hidden_dim))
         self.hidden2tag = nn.Linear(final_hidden_dim, self.label_size).to(self.device)
 
+        # initialize the following transition (anything never -> start. end never -> anything. Same thing for the padding label)
         init_transition = torch.randn(self.label_size, self.label_size).to(self.device)
         init_transition[:, self.start_idx] = -10000.0
         init_transition[self.end_idx, :] = -10000.0
@@ -65,13 +60,18 @@ class NNCRF(nn.Module):
 
         self.transition = nn.Parameter(init_transition)
 
-    def neural_scoring(self, word_seq_tensor, word_seq_lens, batch_context_emb, char_inputs, char_seq_lens):
+    def neural_scoring(self, word_seq_tensor: torch.Tensor,
+                       word_seq_lens: torch.Tensor,
+                       batch_context_emb: torch.Tensor,
+                       char_inputs: torch.Tensor,
+                       char_seq_lens: torch.Tensor) -> torch.Tensor:
         """
+        Encoding the input with BiLSTM
         :param word_seq_tensor: (batch_size, sent_len)   NOTE: The word seq actually is already ordered before come here.
         :param word_seq_lens: (batch_size, 1)
-        :param chars: (batch_size * sent_len * word_length)
+        :param batch_context_emb: (batch_size, sent_len, context embedding) ELMo embedings
+        :param char_inputs: (batch_size * sent_len * word_length)
         :param char_seq_lens: numpy (batch_size * sent_len , 1)
-        :param dep_label_tensor: (batch_size, max_sent_len)
         :return: emission scores (batch_size, sent_len, hidden_dim)
         """
         batch_size = word_seq_tensor.size(0)
@@ -81,7 +81,7 @@ class NNCRF(nn.Module):
         if self.context_emb != ContextEmb.none:
             word_emb = torch.cat([word_emb, batch_context_emb.to(self.device)], 2)
         if self.use_char:
-            char_features = self.char_feature.get_last_hiddens(char_inputs, char_seq_lens)
+            char_features = self.char_feature(char_inputs, char_seq_lens)
             word_emb = torch.cat([word_emb, char_features], 2)
 
         word_rep = self.word_drop(word_emb)
@@ -100,14 +100,26 @@ class NNCRF(nn.Module):
 
         return outputs[recover_idx]
 
-    def calculate_all_scores(self, features):
-        batch_size = features.size(0)
-        seq_len = features.size(1)
+    def calculate_all_scores(self, lstm_scores: torch.Tensor) -> torch.Tensor:
+        """
+        Calculate all scores by adding up the transition scores and emissions (from lstm).
+        This score is later be used for forward-backward inference
+        :param lstm_scores: emission scores.
+        :return:
+        """
+        batch_size = lstm_scores.size(0)
+        seq_len = lstm_scores.size(1)
         scores = self.transition.view(1, 1, self.label_size, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size) + \
-                    features.view(batch_size, seq_len, 1, self.label_size).expand(batch_size,seq_len,self.label_size, self.label_size)
+                 lstm_scores.view(batch_size, seq_len, 1, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size)
         return scores
 
-    def forward_unlabeled(self, all_scores, word_seq_lens, masks):
+    def forward_unlabeled(self, all_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
+        """
+        Calculate the scores with the forward algorithm. Basically calculating the normalization term
+        :param all_scores: (batch_size x max_seq_len x num_labels) from lstm scores.
+        :param word_seq_lens: (batch_size)
+        :return: (batch_size) for the normalization scores
+        """
         batch_size = all_scores.size(0)
         seq_len = all_scores.size(1)
         alpha = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
@@ -126,13 +138,14 @@ class NNCRF(nn.Module):
 
         return torch.sum(last_alpha)
 
-    def forward_labeled(self, all_scores, word_seq_lens, tags, masks):
+    def forward_labeled(self, all_scores: torch.Tensor, word_seq_lens: torch.Tensor, tags: torch.Tensor, masks: torch.Tensor) -> torch.Tensor:
         '''
+        Calculate the scores for the gold instances.
         :param all_scores: (batch, seq_len, label_size, label_size)
         :param word_seq_lens: (batch, seq_len)
         :param tags: (batch, seq_len)
         :param masks: batch, seq_len
-        :return: sum of score for the gold sequences
+        :return: sum of score for the gold sequences Shape: (batch_size)
         '''
         batchSize = all_scores.shape[0]
         sentLength = all_scores.shape[1]
@@ -149,12 +162,26 @@ class NNCRF(nn.Module):
             score += torch.sum(tagTransScoresMiddle.masked_select(masks[:, 1:]))
         return score
 
+    @overrides
+    def forward(self, words: torch.Tensor,
+                    word_seq_lens: torch.Tensor,
+                    batch_context_emb: torch.Tensor,
+                    chars: torch.Tensor,
+                    char_seq_lens: torch.Tensor,
+                    tags: torch.Tensor) -> torch.Tensor:
+        """
+        Calculate the negative loglikelihood.
+        :param words: (batch_size x max_seq_len)
+        :param word_seq_lens: (batch_size)
+        :param batch_context_emb: (batch_size x max_seq_len x context_emb_size)
+        :param chars: (batch_size x max_seq_len x max_char_len)
+        :param char_seq_lens: (batch_size x max_seq_len)
+        :param tags: (batch_size x max_seq_len)
+        :return: the loss with shape (batch_size)
+        """
+        lstm_scores = self.neural_scoring(words, word_seq_lens, batch_context_emb, chars, char_seq_lens)
 
-
-    def neg_log_obj(self, words, word_seq_lens, batch_context_emb, chars, char_seq_lens, tags):
-        features = self.neural_scoring(words, word_seq_lens, batch_context_emb, chars, char_seq_lens)
-
-        all_scores = self.calculate_all_scores(features)
+        all_scores = self.calculate_all_scores(lstm_scores)
 
         batch_size = words.size(0)
         sent_len = words.size(1)
@@ -162,12 +189,18 @@ class NNCRF(nn.Module):
         maskTemp = torch.arange(1, sent_len + 1, dtype=torch.long).view(1, sent_len).expand(batch_size, sent_len).to(self.device)
         mask = torch.le(maskTemp, word_seq_lens.view(batch_size, 1).expand(batch_size, sent_len)).to(self.device)
 
-        unlabed_score = self.forward_unlabeled(all_scores, word_seq_lens, mask)
+        unlabed_score = self.forward_unlabeled(all_scores, word_seq_lens)
         labeled_score = self.forward_labeled(all_scores, word_seq_lens, tags, mask)
         return unlabed_score - labeled_score
 
-
-    def viterbiDecode(self, all_scores, word_seq_lens):
+    def viterbi_decode(self, all_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Use viterbi to decode the instances given the scores and transition parameters
+        :param all_scores: (batch_size x max_seq_len x num_labels)
+        :param word_seq_lens: (batch_size)
+        :return: the best scores as well as the predicted label ids.
+               (batch_size) and (batch_size x max_seq_len)
+        """
         batchSize = all_scores.shape[0]
         sentLength = all_scores.shape[1]
         # sent_len =
@@ -199,9 +232,14 @@ class NNCRF(nn.Module):
 
         return bestScores, decodeIdx
 
-    def decode(self, batchInput):
+    def decode(self, batchInput: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Decode the batch input
+        :param batchInput:
+        :return:
+        """
         wordSeqTensor, wordSeqLengths, batch_context_emb, charSeqTensor, charSeqLengths, tagSeqTensor = batchInput
         features = self.neural_scoring(wordSeqTensor, wordSeqLengths, batch_context_emb,charSeqTensor,charSeqLengths)
         all_scores = self.calculate_all_scores(features)
-        bestScores, decodeIdx = self.viterbiDecode(all_scores, wordSeqLengths)
+        bestScores, decodeIdx = self.viterbi_decode(all_scores, wordSeqLengths)
         return bestScores, decodeIdx

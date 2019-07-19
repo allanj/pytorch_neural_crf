@@ -8,7 +8,7 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
 
 
 ### Usage
-1. Put the Glove embedding file (`glove.6B.100d.txt`) under `data` directory (You can also use ELMo/BERT/Flair, further details will be provided.)
+1. Put the Glove embedding file (`glove.6B.100d.txt`) under `data` directory (You can also use ELMo/BERT/Flair, Check below.) Note that if your embedding file does not exist, we just randomly initalize the embeddings.
 2. Simply run the following command and you can obtain results comparable to the benchmark above.
     ```bash
     python3.6 main.py
@@ -76,6 +76,10 @@ Empirically, although `ADAM` optimizer converges faster, we found that using `SG
     The results can be reproduced by simply changing the dataset from `conll2003` to `ontonotes`.
 
 
+### Future Plan
+
+- [x] Support for ELMo
+- [ ] Interactive model where we can just import model and decode a setence
 
 
 

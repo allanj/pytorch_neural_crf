@@ -4,15 +4,14 @@
 
 import numpy as np
 from tqdm import tqdm
-from typing import List
+from typing import List, Tuple, Dict, Union
 from common import Instance
 from config.utils import PAD, START, STOP
 import torch
 from enum import Enum
 import os
+
 from termcolor import colored
-
-
 
 class ContextEmb(Enum):
     none = 0
@@ -21,14 +20,14 @@ class ContextEmb(Enum):
     flair = 3 # not support yet
 
 
-
-
 class Config:
-    def __init__(self, args):
+    def __init__(self, args) -> None:
         """
         Construct the arguments and some hyperparameters
         :param args:
         """
+
+        # Predefined label string.
         self.PAD = PAD
         self.B = "B-"
         self.I = "I-"
@@ -40,8 +39,7 @@ class Config:
         self.UNK = "<UNK>"
         self.unk_id = -1
 
-
-        # self.device = torch.device("cuda" if args.gpu else "cpu")
+        # Model hyper parameters
         self.embedding_file = args.embedding_file
         self.embedding_dim = args.embedding_dim
         self.context_emb = ContextEmb[args.context_emb]
@@ -50,9 +48,16 @@ class Config:
         self.word_embedding = None
         self.seed = args.seed
         self.digit2zero = args.digit2zero
+        self.hidden_dim = args.hidden_dim
+        self.use_brnn = True
+        self.num_layers = 1
+        self.dropout = args.dropout
+        self.char_emb_size = 25
+        self.charlstm_hidden_dim = 50
+        self.use_char_rnn = args.use_char_rnn
 
+        # Data specification
         self.dataset = args.dataset
-
         self.train_file = "data/" + self.dataset + "/train.txt"
         self.dev_file = "data/" + self.dataset + "/dev.txt"
         self.test_file = "data/" + self.dataset + "/test.txt"
@@ -61,35 +66,27 @@ class Config:
         self.char2idx = {}
         self.idx2char = []
         self.num_char = 0
+        self.train_num = args.train_num
+        self.dev_num = args.dev_num
+        self.test_num = args.test_num
 
-
+        # Training hyperparameter
         self.optimizer = args.optimizer.lower()
         self.learning_rate = args.learning_rate
         self.momentum = args.momentum
         self.l2 = args.l2
         self.num_epochs = args.num_epochs
         self.use_dev = True
-        self.train_num = args.train_num
-        self.dev_num = args.dev_num
-        self.test_num = args.test_num
         self.batch_size = args.batch_size
         self.clip = 5
         self.lr_decay = args.lr_decay
         self.device = torch.device(args.device)
 
-        self.hidden_dim = args.hidden_dim
-        # self.tanh_hidden_dim = args.tanh_hidden_dim
-        self.use_brnn = True
-        self.num_layers = 1
-        self.dropout = args.dropout
-        self.char_emb_size = 25
-        self.charlstm_hidden_dim = 50
-        self.use_char_rnn = args.use_char_rnn
-
-    '''
-      read all the  pretrain embeddings
-    '''
-    def read_pretrain_embedding(self):
+    def read_pretrain_embedding(self) -> Tuple[Union[Dict[str, np.array], None], int]:
+        """
+        Read the pretrained word embeddings, return the complete embeddings and the embedding dimension
+        :return:
+        """
         print("reading the pretraing embedding: %s" % (self.embedding_file))
         if self.embedding_file is None:
             print("pretrain embedding in None, using random embedding")
@@ -97,7 +94,9 @@ class Config:
         else:
             exists = os.path.isfile(self.embedding_file)
             if not exists:
-                raise FileNotFoundError("The embedding file does not exists")
+                print(colored("[Warning] pretrain embedding file not exists, using random embedding",  'red'))
+                return None, self.embedding_dim
+                # raise FileNotFoundError("The embedding file does not exists")
         embedding_dim = -1
         embedding = dict()
         with open(self.embedding_file, 'r', encoding='utf-8') as file:
@@ -139,13 +138,13 @@ class Config:
         self.char2idx[self.UNK] = 1
         self.idx2char.append(self.UNK)
 
-        ##extract char on train, dev, test
+        # extract char on train, dev, test
         for inst in train_insts + dev_insts + test_insts:
             for word in inst.input.words:
                 if word not in self.word2idx:
                     self.word2idx[word] = len(self.word2idx)
                     self.idx2word.append(word)
-        ##extract char only on train
+        # extract char only on train (doesn't matter for dev and test)
         for inst in train_insts:
             for word in inst.input.words:
                 for c in word:
@@ -154,11 +153,11 @@ class Config:
                         self.idx2char.append(c)
         self.num_char = len(self.idx2char)
 
-    '''
-        build the embedding table
-        obtain the word2idx and idx2word as well.
-    '''
-    def build_emb_table(self):
+    def build_emb_table(self) -> None:
+        """
+        build the embedding table with pretrained word embeddings (if given otherwise, use random embeddings)
+        :return:
+        """
         print("Building the embedding table for vocabulary...")
         scale = np.sqrt(3.0 / self.embedding_dim)
         if self.embedding is not None:
@@ -178,8 +177,12 @@ class Config:
             for word in self.word2idx:
                 self.word_embedding[self.word2idx[word], :] = np.random.uniform(-scale, scale, [1, self.embedding_dim])
 
-
-    def build_label_idx(self, insts):
+    def build_label_idx(self, insts: List[Instance]) -> None:
+        """
+        Build the mapping from label to index and index to labels.
+        :param insts: list of instances.
+        :return:
+        """
         self.label2idx[self.PAD] = len(self.label2idx)
         self.idx2labels.append(self.PAD)
         for inst in insts:
@@ -193,10 +196,15 @@ class Config:
         self.label2idx[self.STOP_TAG] = len(self.label2idx)
         self.idx2labels.append(self.STOP_TAG)
         self.label_size = len(self.label2idx)
-        print("#labels: " + str(self.label_size))
-        print("label 2idx: " + str(self.label2idx))
+        print("#labels: {}".format(self.label_size))
+        print("label 2idx: {}".format(self.label2idx))
 
-    def use_iobes(self, insts):
+    def use_iobes(self, insts: List[Instance]) -> None:
+        """
+        Use IOBES tagging schema to replace the IOB tagging schema in the instance
+        :param insts:
+        :return:
+        """
         for inst in insts:
             output = inst.output
             for pos in range(len(inst)):
@@ -216,13 +224,15 @@ class Config:
                             output[pos] = curr_entity.replace(self.I, self.E)
 
     def map_insts_ids(self, insts: List[Instance]):
-        insts_ids = []
+        """
+        Create id for word, char and label in each instance.
+        :param insts:
+        :return:
+        """
         for inst in insts:
             words = inst.input.words
             inst.word_ids = []
             inst.char_ids = []
-            inst.dep_label_ids = []
-            inst.dep_head_ids = []
             inst.output_ids = []
             for word in words:
                 if word in self.word2idx:
@@ -238,5 +248,3 @@ class Config:
                 inst.char_ids.append(char_id)
             for label in inst.output:
                 inst.output_ids.append(self.label2idx[label])
-            insts_ids.append([inst.word_ids, inst.char_ids, inst.output_ids])
-        return insts_ids
