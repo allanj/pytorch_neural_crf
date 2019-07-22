@@ -1,4 +1,3 @@
-
 import argparse
 import random
 import numpy as np
@@ -27,16 +26,20 @@ def setSeed(opt, seed):
 
 def parse_arguments(parser):
     ###Training Hyperparameters
-    parser.add_argument('--mode', type=str, default='train', choices=["train","test"], help="training mode or testing mode")
-    parser.add_argument('--device', type=str, default="cpu", choices=['cpu','cuda:0','cuda:1','cuda:2'],help="GPU/CPU devices")
+    parser.add_argument('--mode', type=str, default='test', choices=["train", "test"],
+                        help="training mode or testing mode")
+    parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
+                        help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
-    parser.add_argument('--digit2zero', action="store_true", default=True, help="convert the number to 0, make it true is better")
+    parser.add_argument('--digit2zero', action="store_true", default=True,
+                        help="convert the number to 0, make it true is better")
     parser.add_argument('--dataset', type=str, default="conll2003")
-    parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt", help="change it to None if you want to use random embedding")
+    parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
+                        help="change it to None if you want to use random embedding")
     # parser.add_argument('--embedding_file', type=str, default=None)
     parser.add_argument('--embedding_dim', type=int, default=100)
     parser.add_argument('--optimizer', type=str, default="sgd")
-    parser.add_argument('--learning_rate', type=float, default=0.01) ##only for sgd now
+    parser.add_argument('--learning_rate', type=float, default=0.01)  ##only for sgd now
     parser.add_argument('--momentum', type=float, default=0.0)
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
@@ -50,10 +53,8 @@ def parse_arguments(parser):
     parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
-    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo"], help="contextual word embedding (not well supported yet)")
-
-
-
+    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo"],
+                        help="contextual word embedding (not well supported yet)")
 
     args = parser.parse_args()
     for k in args.__dict__:
@@ -64,7 +65,8 @@ def parse_arguments(parser):
 def get_optimizer(config: Config, model: nn.Module):
     params = model.parameters()
     if config.optimizer.lower() == "sgd":
-        print(colored("Using SGD: lr is: {}, L2 regularization is: {}".format(config.learning_rate, config.l2), 'yellow'))
+        print(
+            colored("Using SGD: lr is: {}, L2 regularization is: {}".format(config.learning_rate, config.l2), 'yellow'))
         return optim.SGD(params, lr=config.learning_rate, weight_decay=float(config.l2))
     elif config.optimizer.lower() == "adam":
         print(colored("Using Adam", 'yellow'))
@@ -74,7 +76,7 @@ def get_optimizer(config: Config, model: nn.Module):
         exit(1)
 
 
-def batching_list_instances(config: Config, insts:List[Instance]):
+def batching_list_instances(config: Config, insts: List[Instance]):
     train_num = len(insts)
     batch_size = config.batch_size
     total_batch = train_num // batch_size + 1 if train_num % batch_size != 0 else train_num // batch_size
@@ -86,7 +88,8 @@ def batching_list_instances(config: Config, insts:List[Instance]):
     return batched_data
 
 
-def train_model(config:Config, epoch: int, train_insts: List[Instance], dev_insts : List[Instance], test_insts: List[Instance]):
+def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_insts: List[Instance],
+                test_insts: List[Instance]):
     model = NNCRF(config)
     optimizer = get_optimizer(config, model)
     train_num = len(train_insts)
@@ -104,8 +107,16 @@ def train_model(config:Config, epoch: int, train_insts: List[Instance], dev_inst
     model_folder = "model_files"
     res_folder = "results"
 
-    model_name = model_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.m".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
-    res_name = res_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.results".format(config.hidden_dim, config.dataset, config.train_num, config.context_emb.name, config.optimizer.lower(), config.learning_rate)
+    model_name = model_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.m".format(config.hidden_dim, config.dataset,
+                                                                                  config.train_num,
+                                                                                  config.context_emb.name,
+                                                                                  config.optimizer.lower(),
+                                                                                  config.learning_rate)
+    res_name = res_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.results".format(config.hidden_dim, config.dataset,
+                                                                                    config.train_num,
+                                                                                    config.context_emb.name,
+                                                                                    config.optimizer.lower(),
+                                                                                    config.learning_rate)
     print("[Info] The model will be saved to: %s" % (model_name))
     if not os.path.exists(model_folder):
         os.makedirs(model_folder)
@@ -151,7 +162,7 @@ def train_model(config:Config, epoch: int, train_insts: List[Instance], dev_inst
     write_results(res_name, test_insts)
 
 
-def evaluate_model(config:Config, model: NNCRF, batch_insts_ids, name:str, insts: List[Instance]):
+def evaluate_model(config: Config, model: NNCRF, batch_insts_ids, name: str, insts: List[Instance]):
     ## evaluation
     metrics = np.asarray([0, 0, 0], dtype=int)
     batch_id = 0
@@ -166,22 +177,20 @@ def evaluate_model(config:Config, model: NNCRF, batch_insts_ids, name:str, insts
     precision = p * 1.0 / total_predict * 100 if total_predict != 0 else 0
     recall = p * 1.0 / total_entity * 100 if total_entity != 0 else 0
     fscore = 2.0 * precision * recall / (precision + recall) if precision != 0 or recall != 0 else 0
-    print("[%s set] Precision: %.2f, Recall: %.2f, F1: %.2f" % (name, precision, recall,fscore), flush=True)
+    print("[%s set] Precision: %.2f, Recall: %.2f, F1: %.2f" % (name, precision, recall, fscore), flush=True)
     return [precision, recall, fscore]
 
 
 def test_model(config: Config, test_insts):
-    model_name = "model_files/lstm_{}_crf_{}_{}_dep_{}_elmo_{}_lr_{}.m".format(config.hidden_dim, config.dataset,
+    model_name = "model_files/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.m".format(config.hidden_dim, config.dataset,
+                                                                              config.train_num, config.context_emb.name,
+                                                                              config.optimizer.lower(),
+                                                                              config.learning_rate)
+    res_name = "results/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}..results".format(config.hidden_dim, config.dataset,
                                                                                config.train_num,
                                                                                config.context_emb.name,
                                                                                config.optimizer.lower(),
                                                                                config.learning_rate)
-    res_name = "results/lstm_{}_crf_{}_{}_dep_{}_elmo_{}_lr_{}.results".format(config.hidden_dim, config.dataset,
-                                                                               config.train_num,
-                                                                               config.context_emb.name,
-                                                                               config.optimizer.lower(),
-                                                                               config.learning_rate)
-
 
     model = NNCRF(config)
     model.load_state_dict(torch.load(model_name))
@@ -191,21 +200,17 @@ def test_model(config: Config, test_insts):
     write_results(res_name, test_insts)
 
 
-def write_results(filename:str, insts):
+def write_results(filename: str, insts):
     f = open(filename, 'w', encoding='utf-8')
     for inst in insts:
         for i in range(len(inst.input)):
             words = inst.input.words
             output = inst.output
             prediction = inst.prediction
-            assert  len(output) == len(prediction)
+            assert len(output) == len(prediction)
             f.write("{}\t{}\t{}\t{}\n".format(i, words[i], output[i], prediction[i]))
         f.write("\n")
     f.close()
-
-
-
-
 
 
 def main():
@@ -222,9 +227,9 @@ def main():
 
     if conf.context_emb != ContextEmb.none:
         print('Loading the ELMo vectors for all datasets.')
-        conf.context_emb_size = load_elmo_vec(conf.train_file + "."+conf.context_emb.name+".vec", trains)
-        load_elmo_vec(conf.dev_file  + "."+conf.context_emb.name+".vec", devs)
-        load_elmo_vec(conf.test_file + "."+conf.context_emb.name+".vec", tests)
+        conf.context_emb_size = load_elmo_vec(conf.train_file + "." + conf.context_emb.name + ".vec", trains)
+        load_elmo_vec(conf.dev_file + "." + conf.context_emb.name + ".vec", devs)
+        load_elmo_vec(conf.test_file + "." + conf.context_emb.name + ".vec", tests)
 
     conf.use_iobes(trains)
     conf.use_iobes(devs)
@@ -251,6 +256,7 @@ def main():
         # pass
 
     print(opt.mode)
+
 
 if __name__ == "__main__":
     main()
