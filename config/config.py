@@ -6,12 +6,16 @@ import numpy as np
 from tqdm import tqdm
 from typing import List, Tuple, Dict, Union
 from common import Instance
-from config.utils import PAD, START, STOP
 import torch
 from enum import Enum
 import os
 
 from termcolor import colored
+
+
+START = "<START>"
+STOP = "<STOP>"
+PAD = "<PAD>"
 
 class ContextEmb(Enum):
     none = 0

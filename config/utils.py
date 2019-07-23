@@ -5,10 +5,12 @@ from common import Instance
 import pickle
 import torch.optim as optim
 
-START = "<START>"
-STOP = "<STOP>"
-PAD = "<PAD>"
+import torch.nn as nn
 
+
+
+from config import PAD, ContextEmb, Config
+from termcolor import colored
 
 def log_sum_exp_pytorch(vec: torch.Tensor) -> torch.Tensor:
     """
@@ -21,9 +23,19 @@ def log_sum_exp_pytorch(vec: torch.Tensor) -> torch.Tensor:
     maxScoresExpanded = maxScores.view(vec.shape[0] ,1 , vec.shape[2]).expand(vec.shape[0], vec.shape[1], vec.shape[2])
     return maxScores + torch.log(torch.sum(torch.exp(vec - maxScoresExpanded), 1))
 
+def batching_list_instances(config: Config, insts: List[Instance]):
+    train_num = len(insts)
+    batch_size = config.batch_size
+    total_batch = train_num // batch_size + 1 if train_num % batch_size != 0 else train_num // batch_size
+    batched_data = []
+    for batch_id in range(total_batch):
+        one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
+        batched_data.append(simple_batching(config, one_batch_insts))
+
+    return batched_data
 
 def simple_batching(config, insts: List[Instance]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
-    from config.config import ContextEmb
+
     """
     batching these instances together and return tensors. The seq_tensors for word and char contain their word id and char id.
     :return 
@@ -103,3 +115,32 @@ def load_elmo_vec(file: str, insts: List[Instance]):
         size = vec.shape[1]
         assert(vec.shape[0] == len(inst.input.words))
     return size
+
+
+
+def get_optimizer(config: Config, model: nn.Module):
+    params = model.parameters()
+    if config.optimizer.lower() == "sgd":
+        print(
+            colored("Using SGD: lr is: {}, L2 regularization is: {}".format(config.learning_rate, config.l2), 'yellow'))
+        return optim.SGD(params, lr=config.learning_rate, weight_decay=float(config.l2))
+    elif config.optimizer.lower() == "adam":
+        print(colored("Using Adam", 'yellow'))
+        return optim.Adam(params)
+    else:
+        print("Illegal optimizer: {}".format(config.optimizer))
+        exit(1)
+
+
+
+def write_results(filename: str, insts):
+    f = open(filename, 'w', encoding='utf-8')
+    for inst in insts:
+        for i in range(len(inst.input)):
+            words = inst.input.words
+            output = inst.output
+            prediction = inst.prediction
+            assert len(output) == len(prediction)
+            f.write("{}\t{}\t{}\t{}\n".format(i, words[i], output[i], prediction[i]))
+        f.write("\n")
+    f.close()
