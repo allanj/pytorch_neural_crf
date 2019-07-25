@@ -4,10 +4,54 @@ import pickle
 from model import NNCRF
 import torch
 
-from config import Config, simple_batching, batching_list_instances
+from config import Config, simple_batching, batching_list_instances, ContextEmb
 from typing import List, Union, Tuple
 from common import Instance, Sentence
 import tarfile
+import numpy as np
+
+from allennlp.commands.elmo import ElmoEmbedder
+def load_elmo(cuda_device: int) -> ElmoEmbedder:
+    """
+    Load a ElMo embedder
+    :param cuda_device:
+    :return:
+    """
+    return ElmoEmbedder(cuda_device=cuda_device)
+
+
+def parse_sentence(elmo: ElmoEmbedder, words: List[str], mode:str="average") -> np.array:
+    """
+    Load an ELMo embedder.
+    :param elmo: the ELMo model embedder, allows us to embed a sequence of words
+    :param words: the input word tokens.
+    :param mode:
+    :return:
+    """
+    vectors = elmo.embed_sentence(words)
+    if mode == "average":
+        return np.average(vectors, 0)
+    elif mode == 'weighted_average':
+        return np.swapaxes(vectors, 0, 1)
+    elif mode == 'last':
+        return vectors[-1, :, :]
+    elif mode == 'all':
+        return vectors
+    else:
+        return vectors
+
+def read_parse_write(elmo: ElmoEmbedder, insts, mode: str = "average") -> None:
+    """
+    Read the input files and write the vectors to the output files
+    :param elmo: ELMo embedder
+    :param infile: input files for the sentences
+    :param outfile: output vector files
+    :param mode: the mode of elmo vectors
+    :return:
+    """
+    for inst in insts:
+        vec = parse_sentence(elmo, inst.input.words, mode=mode)
+        inst.elmo_vec = vec
 
 class Predictor:
     """
@@ -18,7 +62,7 @@ class Predictor:
     prediction = model.predict(sentence)
     """
 
-    def __init__(self, model_archived_file:str):
+    def __init__(self, model_archived_file:str, cuda_device= -1):
 
         tar = tarfile.open(model_archived_file)
         tar.extractall()
@@ -32,6 +76,9 @@ class Predictor:
         self.model = NNCRF(self.conf, print_info=False)
         self.model.load_state_dict(torch.load(folder_name + "/lstm_crf.m"))
         self.model.eval()
+
+        if self.conf.context_emb != ContextEmb.none:
+            self.elmo = load_elmo(cuda_device)
 
     def predict_insts(self, batch_insts_ids: Tuple) -> List[List[str]]:
         batch_max_scores, batch_max_ids = self.model.decode(batch_insts_ids)
@@ -63,6 +110,8 @@ class Predictor:
         sents = [sentences] if isinstance(sentences, str) else sentences
         insts = self.sents_to_insts(sents)
         self.conf.map_insts_ids(insts)
+        if self.conf.context_emb != ContextEmb.none:
+            read_parse_write(self.elmo, insts)
         test_batches = self.create_batch_data(insts)
         predictions = self.predict_insts(test_batches)
         if len(predictions) == 1:
@@ -72,8 +121,8 @@ class Predictor:
 
 
 
-sentence = "This is a sentence"
-model_path = "english_model.tar.gz"
-model = Predictor(model_path)
-prediction = model.predict(sentence)
-print(prediction)
+# sentence = "This is a sentence"
+# model_path = "english_model.tar.gz"
+# model = Predictor(model_path)
+# prediction = model.predict(sentence)
+# print(prediction)
