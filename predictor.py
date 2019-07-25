@@ -62,7 +62,7 @@ class Predictor:
     prediction = model.predict(sentence)
     """
 
-    def __init__(self, model_archived_file:str, cuda_device= -1):
+    def __init__(self, model_archived_file:str, cuda_device: str = "cpu"):
 
         tar = tarfile.open(model_archived_file)
         tar.extractall()
@@ -73,11 +73,17 @@ class Predictor:
         self.conf = pickle.load(f)  # variables come out in the order you put them in
         # default batch size for conf is `10`
         f.close()
+        device = torch.device(cuda_device)
+        self.conf.device = device
         self.model = NNCRF(self.conf, print_info=False)
-        self.model.load_state_dict(torch.load(folder_name + "/lstm_crf.m"))
+        self.model.load_state_dict(torch.load(folder_name + "/lstm_crf.m", map_location = device))
         self.model.eval()
 
         if self.conf.context_emb != ContextEmb.none:
+            if cuda_device == "cpu":
+                cuda_device = -1
+            else:
+                cuda_device = int(cuda_device.split(":")[1])
             self.elmo = load_elmo(cuda_device)
 
     def predict_insts(self, batch_insts_ids: Tuple) -> List[List[str]]:
