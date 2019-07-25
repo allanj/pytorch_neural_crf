@@ -47,7 +47,9 @@ def simple_batching(config, insts: List[Instance]) -> Tuple[torch.Tensor, torch.
         label_seq_tensor: Shape: (batch_size, max_seq_length)
     """
     batch_size = len(insts)
-    batch_data = sorted(insts, key=lambda inst: len(inst.input.words), reverse=True) ##object-based not direct copy
+    batch_data = insts
+    # probably no need to sort because we will sort them in the model instead.
+    # batch_data = sorted(insts, key=lambda inst: len(inst.input.words), reverse=True) ##object-based not direct copy
     word_seq_len = torch.LongTensor(list(map(lambda inst: len(inst.input.words), batch_data)))
     max_seq_len = word_seq_len.max()
 
@@ -66,7 +68,8 @@ def simple_batching(config, insts: List[Instance]) -> Tuple[torch.Tensor, torch.
 
     for idx in range(batch_size):
         word_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].word_ids)
-        label_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].output_ids)
+        if batch_data[idx].output_ids:
+            label_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].output_ids)
         if config.context_emb != ContextEmb.none:
             context_emb_tensor[idx, :word_seq_len[idx], :] = torch.from_numpy(batch_data[idx].elmo_vec)
 
