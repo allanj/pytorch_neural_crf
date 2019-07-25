@@ -9,9 +9,10 @@ from overrides import overrides
 
 class CharBiLSTM(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config, print_info: bool = True):
         super(CharBiLSTM, self).__init__()
-        print("[Info] Building character-level LSTM")
+        if print_info:
+            print("[Info] Building character-level LSTM")
         self.char_emb_size = config.char_emb_size
         self.char2idx = config.char2idx
         self.chars = config.idx2char

@@ -237,7 +237,7 @@ class Config:
             words = inst.input.words
             inst.word_ids = []
             inst.char_ids = []
-            inst.output_ids = []
+            inst.output_ids = [] if inst.output else None
             for word in words:
                 if word in self.word2idx:
                     inst.word_ids.append(self.word2idx[word])
@@ -250,5 +250,6 @@ class Config:
                     else:
                         char_id.append(self.char2idx[self.UNK])
                 inst.char_ids.append(char_id)
-            for label in inst.output:
-                inst.output_ids.append(self.label2idx[label])
+            if inst.output:
+                for label in inst.output:
+                    inst.output_ids.append(self.label2idx[label])

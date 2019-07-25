@@ -15,7 +15,7 @@ from overrides import overrides
 
 class NNCRF(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config, print_info: bool = True):
         super(NNCRF, self).__init__()
 
         self.label_size = config.label_size
@@ -33,14 +33,15 @@ class NNCRF(nn.Module):
         if self.context_emb != ContextEmb.none:
             self.input_size += config.context_emb_size
         if self.use_char:
-            self.char_feature = CharBiLSTM(config)
+            self.char_feature = CharBiLSTM(config, print_info=print_info)
             self.input_size += config.charlstm_hidden_dim
 
         self.word_embedding = nn.Embedding.from_pretrained(torch.FloatTensor(config.word_embedding), freeze=False).to(self.device)
         self.word_drop = nn.Dropout(config.dropout).to(self.device)
 
-        print("[Model Info] Input size to LSTM: {}".format(self.input_size))
-        print("[Model Info] LSTM Hidden Size: {}".format(config.hidden_dim))
+        if print_info:
+            print("[Model Info] Input size to LSTM: {}".format(self.input_size))
+            print("[Model Info] LSTM Hidden Size: {}".format(config.hidden_dim))
 
         self.lstm = nn.LSTM(self.input_size, config.hidden_dim // 2, num_layers=1, batch_first=True, bidirectional=True).to(self.device)
 
@@ -48,7 +49,9 @@ class NNCRF(nn.Module):
 
         final_hidden_dim = config.hidden_dim
 
-        print("[Model Info] Final Hidden Size: {}".format(final_hidden_dim))
+        if print_info:
+            print("[Model Info] Final Hidden Size: {}".format(final_hidden_dim))
+
         self.hidden2tag = nn.Linear(final_hidden_dim, self.label_size).to(self.device)
 
         # initialize the following transition (anything never -> start. end never -> anything. Same thing for the padding label)

@@ -210,7 +210,7 @@ def main():
     # print(config.word2idx)
     if opt.mode == "train":
         train_model(conf, conf.num_epochs, trains, devs, tests)
-        f = open("models/config.m", 'wb')
+        f = open("model_files/config.m", 'wb')
         pickle.dump(conf, f)
         f.close()
     else:
