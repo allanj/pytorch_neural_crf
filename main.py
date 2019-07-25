@@ -5,14 +5,14 @@ from config import Reader, Config, ContextEmb, lr_decay, simple_batching, evalua
 import time
 from model import NNCRF
 import torch
-import torch.optim as optim
-import torch.nn as nn
 from typing import List
 from common import Instance
 from termcolor import colored
 import os
 from config.utils import load_elmo_vec
 import pickle
+import tarfile
+import shutil
 
 def set_seed(opt, seed):
     random.seed(seed)
@@ -26,8 +26,6 @@ def set_seed(opt, seed):
 
 def parse_arguments(parser):
     ###Training Hyperparameters
-    parser.add_argument('--mode', type=str, default='train', choices=["train", "test"],
-                        help="training mode or testing mode")
     parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
                         help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
@@ -35,8 +33,7 @@ def parse_arguments(parser):
                         help="convert the number to 0, make it true is better")
     parser.add_argument('--dataset', type=str, default="conll2003")
     parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
-                        help="change it to None if you want to use random embedding")
-    # parser.add_argument('--embedding_file', type=str, default=None)
+                        help="we will be using random embeddings if file do not exist")
     parser.add_argument('--embedding_dim', type=int, default=100)
     parser.add_argument('--optimizer', type=str, default="sgd")
     parser.add_argument('--learning_rate', type=float, default=0.01)  ##only for sgd now
@@ -44,17 +41,18 @@ def parse_arguments(parser):
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
     parser.add_argument('--batch_size', type=int, default=10, help="default batch size is 10 (works well)")
-    parser.add_argument('--num_epochs', type=int, default=10, help="Usually we set to 10.")
-    parser.add_argument('--train_num', type=int, default=500, help="-1 means all the data")
-    parser.add_argument('--dev_num', type=int, default=100, help="-1 means all the data")
-    parser.add_argument('--test_num', type=int, default=100, help="-1 means all the data")
+    parser.add_argument('--num_epochs', type=int, default=100, help="Usually we set to 10.")
+    parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
+    parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
+    parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
 
     ##model hyperparameter
+    parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
     parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
     parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo"],
-                        help="contextual word embedding (not well supported yet)")
+                        help="contextual word embedding")
 
     args = parser.parse_args()
     for k in args.__dict__:
@@ -77,20 +75,15 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
     best_dev = [-1, 0]
     best_test = [-1, 0]
 
-    model_folder = "model_files"
+    model_folder = config.model_folder
     res_folder = "results"
-
-    model_name = model_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.m".format(config.hidden_dim, config.dataset,
-                                                                                  config.train_num,
-                                                                                  config.context_emb.name,
-                                                                                  config.optimizer.lower(),
-                                                                                  config.learning_rate)
-    res_name = res_folder + "/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.results".format(config.hidden_dim, config.dataset,
-                                                                                    config.train_num,
-                                                                                    config.context_emb.name,
-                                                                                    config.optimizer.lower(),
-                                                                                    config.learning_rate)
-    print("[Info] The model will be saved to: %s" % (model_name))
+    if os.path.exists(model_folder):
+        raise FileExistsError(f"The folder {model_folder} exists. Please either delete it or create a new one "
+                              f"to avoid override.")
+    model_name = model_folder + "/lstm_crf.m".format()
+    config_name = model_folder + "/config.conf"
+    res_name = res_folder + "/lstm_crf.results".format()
+    print("[Info] The model will be saved to: %s.tar.gz" % (model_folder))
     if not os.path.exists(model_folder):
         os.makedirs(model_folder)
     if not os.path.exists(res_folder):
@@ -123,8 +116,18 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
             best_test[0] = test_metrics[2]
             best_test[1] = i
             torch.save(model.state_dict(), model_name)
+            # Save the corresponding config as well.
+            f = open(config_name, 'wb')
+            pickle.dump(config, f)
+            f.close()
             write_results(res_name, test_insts)
         model.zero_grad()
+
+    print("Archiving the best Model...")
+    with tarfile.open(model_folder + "/" + model_folder + ".tar.gz", "w:gz") as tar:
+        tar.add(model_folder, arcname=os.path.basename(model_folder))
+
+    print("Finished archiving the models")
 
     print("The best dev: %.2f" % (best_dev[0]))
     print("The corresponding test: %.2f" % (best_test[0]))
@@ -142,9 +145,8 @@ def evaluate_model(config: Config, model: NNCRF, batch_insts_ids, name: str, ins
     batch_size = config.batch_size
     for batch in batch_insts_ids:
         one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
-        sorted_batch_insts = sorted(one_batch_insts, key=lambda inst: len(inst.input.words), reverse=True)
         batch_max_scores, batch_max_ids = model.decode(batch)
-        metrics += evaluate_batch_insts(sorted_batch_insts, batch_max_ids, batch[-1], batch[1], config.idx2labels)
+        metrics += evaluate_batch_insts(one_batch_insts, batch_max_ids, batch[-1], batch[1], config.idx2labels)
         batch_id += 1
     p, total_predict, total_entity = metrics[0], metrics[1], metrics[2]
     precision = p * 1.0 / total_predict * 100 if total_predict != 0 else 0
@@ -152,25 +154,6 @@ def evaluate_model(config: Config, model: NNCRF, batch_insts_ids, name: str, ins
     fscore = 2.0 * precision * recall / (precision + recall) if precision != 0 or recall != 0 else 0
     print("[%s set] Precision: %.2f, Recall: %.2f, F1: %.2f" % (name, precision, recall, fscore), flush=True)
     return [precision, recall, fscore]
-
-
-def test_model(config: Config, test_insts):
-    model_name = "model_files/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}.m".format(config.hidden_dim, config.dataset,
-                                                                              config.train_num, config.context_emb.name,
-                                                                              config.optimizer.lower(),
-                                                                              config.learning_rate)
-    res_name = "results/lstm_{}_crf_{}_{}_{}_context_{}_lr_{}..results".format(config.hidden_dim, config.dataset,
-                                                                               config.train_num,
-                                                                               config.context_emb.name,
-                                                                               config.optimizer.lower(),
-                                                                               config.learning_rate)
-
-    model = NNCRF(config)
-    model.load_state_dict(torch.load(model_name))
-    model.eval()
-    test_batches = batching_list_instances(config, test_insts)
-    evaluate_model(config, model, test_batches, "test", test_insts)
-    write_results(res_name, test_insts)
 
 
 def main():
@@ -208,17 +191,7 @@ def main():
 
     print("num words: " + str(len(conf.word2idx)))
     # print(config.word2idx)
-    if opt.mode == "train":
-        train_model(conf, conf.num_epochs, trains, devs, tests)
-        f = open("model_files/config.m", 'wb')
-        pickle.dump(conf, f)
-        f.close()
-    else:
-        ## Load the trained model.
-        test_model(conf, tests)
-        # pass
-
-    print(opt.mode)
+    train_model(conf, conf.num_epochs, trains, devs, tests)
 
 
 if __name__ == "__main__":
