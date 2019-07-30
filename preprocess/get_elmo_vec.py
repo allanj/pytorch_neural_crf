@@ -60,23 +60,30 @@ def read_parse_write(elmo: ElmoEmbedder, infile: str, outfile: str, mode: str = 
     f.close()
 
 
-cuda_device = -1 # >=0 for gpu, using GPU should be much faster.
-elmo = load_elmo(cuda_device)
-mode= "average"
-dataset="conll2003"
+def get_vector():
+
+    cuda_device = -1 # >=0 for gpu, using GPU should be much faster.
+    elmo = load_elmo(cuda_device)
+    mode= "average"
+    dataset="conll2003"
 
 
-# Read train
-file = "../data/"+dataset+"/train.txt"
-outfile = file + ".elmo.vec"
-read_parse_write(elmo, file, outfile, mode)
+    # Read train
+    file = "../data/"+dataset+"/train.txt"
+    outfile = file + ".elmo.vec"
+    read_parse_write(elmo, file, outfile, mode)
 
-# Read dev
-file = "../data/"+dataset+"/dev.txt"
-outfile = file + ".elmo.vec"
-read_parse_write(elmo, file, outfile, mode)
+    # Read dev
+    file = "../data/"+dataset+"/dev.txt"
+    outfile = file + ".elmo.vec"
+    read_parse_write(elmo, file, outfile, mode)
 
-# Read test
-file = "../data/"+dataset+"/test.txt"
-outfile = file + ".elmo.vec"
-read_parse_write(elmo, file, outfile, mode)
+    # Read test
+    file = "../data/"+dataset+"/test.txt"
+    outfile = file + ".elmo.vec"
+    read_parse_write(elmo, file, outfile, mode)
+
+
+
+if __name__ == "__main__":
+    get_vector()

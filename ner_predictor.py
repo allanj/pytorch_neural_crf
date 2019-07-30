@@ -4,56 +4,28 @@ import pickle
 from model import NNCRF
 import torch
 
-from config import Config, simple_batching, batching_list_instances, ContextEmb
+from config import simple_batching, ContextEmb
 from typing import List, Union, Tuple
 from common import Instance, Sentence
 import tarfile
-import numpy as np
 
 from allennlp.commands.elmo import ElmoEmbedder
-def load_elmo(cuda_device: int) -> ElmoEmbedder:
-    """
-    Load a ElMo embedder
-    :param cuda_device:
-    :return:
-    """
-    return ElmoEmbedder(cuda_device=cuda_device)
+from preprocess.get_elmo_vec import load_elmo, parse_sentence
 
 
-def parse_sentence(elmo: ElmoEmbedder, words: List[str], mode:str="average") -> np.array:
-    """
-    Load an ELMo embedder.
-    :param elmo: the ELMo model embedder, allows us to embed a sequence of words
-    :param words: the input word tokens.
-    :param mode:
-    :return:
-    """
-    vectors = elmo.embed_sentence(words)
-    if mode == "average":
-        return np.average(vectors, 0)
-    elif mode == 'weighted_average':
-        return np.swapaxes(vectors, 0, 1)
-    elif mode == 'last':
-        return vectors[-1, :, :]
-    elif mode == 'all':
-        return vectors
-    else:
-        return vectors
+"""
+Predictor usage example:
 
-def read_parse_write(elmo: ElmoEmbedder, insts, mode: str = "average") -> None:
-    """
-    Read the input files and write the vectors to the output files
-    :param elmo: ELMo embedder
-    :param infile: input files for the sentences
-    :param outfile: output vector files
-    :param mode: the mode of elmo vectors
-    :return:
-    """
-    for inst in insts:
-        vec = parse_sentence(elmo, inst.input.words, mode=mode)
-        inst.elmo_vec = vec
+    sentence = "This is a sentence"
+    model_path = "english_model.tar.gz"
+    model = NERPredictor(model_path)
+    prediction = model.predict(sentence)
+    print(prediction)
 
-class Predictor:
+"""
+
+
+class NERPredictor:
     """
     Usage:
     sentence = "This is a sentence"
@@ -126,9 +98,17 @@ class Predictor:
             return predictions
 
 
+def read_parse_write(elmo: ElmoEmbedder, insts: List[Instance], mode: str = "average") -> None:
+    """
+    Attach the instances into the sentence/
+    :param elmo: ELMo embedder
+    :param insts: List of instance
+    :param mode: the mode of elmo vectors
+    :return:
+    """
+    for inst in insts:
+        vec = parse_sentence(elmo, inst.input.words, mode=mode)
+        inst.elmo_vec = vec
 
-# sentence = "This is a sentence"
-# model_path = "english_model.tar.gz"
-# model = Predictor(model_path)
-# prediction = model.predict(sentence)
-# print(prediction)
+
+
