@@ -17,6 +17,9 @@ from preprocess.get_elmo_vec import load_elmo, parse_sentence
 Predictor usage example:
 
     sentence = "This is a sentence"
+    # Or you can make a list of sentence:
+    # sentence = ["This is a sentence", "This is the second sentence"]
+    
     model_path = "english_model.tar.gz"
     model = NERPredictor(model_path)
     prediction = model.predict(sentence)
@@ -109,6 +112,3 @@ def read_parse_write(elmo: ElmoEmbedder, insts: List[Instance], mode: str = "ave
     for inst in insts:
         vec = parse_sentence(elmo, inst.input.words, mode=mode)
         inst.elmo_vec = vec
-
-
-
