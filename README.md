@@ -1,10 +1,11 @@
-## LSTM-CRF Model for Named Entity Recognition
+## LSTM-CRF Model for Named Entity Recognition (or Sequence Labeling)
 
 This repository implements an LSTM-CRF model for named entity recognition. The model is same as the one by [Lample et al., (2016)](http://www.anthology.aclweb.org/N/N16/N16-1030.pdf) except we do not have the last `tanh` layer after the BiLSTM.
+We achieve the SOTA performance with this codebase (check our [benchmark](/docs/benchmark.md)). 
 
 ### Requirements
-* Python 3.6
-* Tested on PyTorch >=0.4.1
+* Python >= 3.6 and PyTorch >= 0.4.1
+* AllenNLP package (if you use ELMo)
 
 
 ### Usage
