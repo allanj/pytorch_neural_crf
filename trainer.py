@@ -3,7 +3,7 @@ import random
 import numpy as np
 from config import Reader, Config, ContextEmb, lr_decay, simple_batching, evaluate_batch_insts, get_optimizer, write_results, batching_list_instances
 import time
-from model import NNCRF
+from model.neuralcrf import NNCRF
 import torch
 from typing import List
 from common import Instance
