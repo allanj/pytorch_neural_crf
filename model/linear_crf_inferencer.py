@@ -51,7 +51,7 @@ class LinearCRF(nn.Module):
     def forward_unlabeled(self, all_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
         """
         Calculate the scores with the forward algorithm. Basically calculating the normalization term
-        :param all_scores: (batch_size x max_seq_len x num_labels) from lstm scores.
+        :param all_scores: (batch_size x max_seq_len x num_labels x num_labels) from (lstm scores + transition scores).
         :param word_seq_lens: (batch_size)
         :return: (batch_size) for the normalization scores
         """
@@ -100,6 +100,7 @@ class LinearCRF(nn.Module):
     def calculate_all_scores(self, lstm_scores: torch.Tensor) -> torch.Tensor:
         """
         Calculate all scores by adding up the transition scores and emissions (from lstm).
+        Basically, compute the scores for each edges between labels at adjacent positions.
         This score is later be used for forward-backward inference
         :param lstm_scores: emission scores.
         :return:
