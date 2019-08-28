@@ -59,6 +59,7 @@ class Config:
         self.char_emb_size = 25
         self.charlstm_hidden_dim = 50
         self.use_char_rnn = args.use_char_rnn
+        self.use_crf_layer = args.use_crf_layer
 
         # Data specification
         self.dataset = args.dataset

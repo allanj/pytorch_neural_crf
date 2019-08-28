@@ -33,7 +33,8 @@ def evaluate_batch_insts(batch_insts: List[Instance],
                          batch_pred_ids: torch.LongTensor,
                          batch_gold_ids: torch.LongTensor,
                          word_seq_lens: torch.LongTensor,
-                         idx2label: List[str]) -> np.ndarray:
+                         idx2label: List[str],
+                         use_crf_layer: bool = True) -> np.ndarray:
     """
     Evaluate a batch of instances and handling the padding positions.
     :param batch_insts:  a batched of instances.
@@ -52,7 +53,7 @@ def evaluate_batch_insts(batch_insts: List[Instance],
         length = word_seq_lens[idx]
         output = batch_gold_ids[idx][:length].tolist()
         prediction = batch_pred_ids[idx][:length].tolist()
-        prediction = prediction[::-1]
+        prediction = prediction[::-1] if use_crf_layer else prediction
         output = [idx2label[l] for l in output]
         prediction =[idx2label[l] for l in prediction]
         batch_insts[idx].prediction = prediction
