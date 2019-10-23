@@ -26,7 +26,7 @@ sentence = "This is an English model ."
 # Or you can make a list of sentence:
 # sentence = ["This is an English model", "This is the second sentence"]
 model_path = "english_model.tar.gz"
-predictor = NERPredictor(model_path)
+predictor = NERPredictor(model_path, cuda_device="cpu") ## you can use "cuda:0", "cuda:1" for gpu
 prediction = predictor.predict(sentence)
 print(prediction)
 ```
