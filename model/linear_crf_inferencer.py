@@ -73,6 +73,97 @@ class LinearCRF(nn.Module):
 
         return torch.sum(last_alpha)
 
+    def backward(self, lstm_scores, word_seq_lens) -> torch.Tensor:
+        """
+        Backward algorithm. A benchmark implementation which is ready to use.
+        :param lstm_scores: shape: (batch_size, sent_len, label_size) NOTE: the score from LSTMs, not `all_scores` (which add up the transtiion)
+        :param word_seq_lens: shape: (batch_size,)
+        :return: Backward variable
+        """
+        batch_size = lstm_scores.size(0)
+        seq_len = lstm_scores.size(1)
+        beta = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
+
+        ## reverse the view of computing the score. we look from behind
+        rev_score = self.transition.transpose(0, 1).view(1, 1, self.label_size, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size) + \
+                    lstm_scores.view(batch_size, seq_len, 1, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size)
+
+        ## The code below, reverse the score from [0 -> length]  to [length -> 0].  (NOTE: we need to avoid reversing the padding)
+        perm_idx = torch.zeros(batch_size, seq_len).to(self.device)
+        for batch_idx in range(batch_size):
+            perm_idx[batch_idx][:word_seq_lens[batch_idx]] = torch.range(word_seq_lens[batch_idx] - 1, 0, -1)
+        perm_idx = perm_idx.long()
+        for i, length in enumerate(word_seq_lens):
+            rev_score[i, :length] = rev_score[i, :length][perm_idx[i, :length]]
+
+        ## backward operation
+        beta[:, 0, :] = rev_score[:, 0, self.end_idx, :]
+        for word_idx in range(1, seq_len):
+            before_log_sum_exp = beta[:, word_idx - 1, :].view(batch_size, self.label_size, 1).expand(batch_size, self.label_size, self.label_size) + rev_score[:, word_idx, :, :]
+            beta[:, word_idx, :] = log_sum_exp_pytorch(before_log_sum_exp)
+
+        ## Following code is used to check the backward beta implementation
+        last_beta = torch.gather(beta, 1, word_seq_lens.view(batch_size, 1, 1).expand(batch_size, 1, self.label_size) - 1).view(batch_size, self.label_size)
+        last_beta += self.transition.transpose(0, 1)[:, self.start_idx].view(1, self.label_size).expand(batch_size, self.label_size)
+        last_beta = log_sum_exp_pytorch(last_beta.view(batch_size, self.label_size, 1)).view(batch_size)
+
+        # This part if optionally, if you only use `last_beta`.
+        # Otherwise, you need this to reverse back if you also need to use beta
+        for i, length in enumerate(word_seq_lens):
+            beta[i, :length] = beta[i, :length][perm_idx[i, :length]]
+
+        return torch.sum(last_beta)
+
+    def forward_backward(self, lstm_scores, word_seq_lens) -> torch.Tensor:
+        """
+        Forward-backward algorithm to compute the marginal probability (in log space)
+        Basically, we follow the `backward` algorithm to obtain the backward scores.
+        :param lstm_scores:   shape: (batch_size, sent_len, label_size) NOTE: the score from LSTMs, not `all_scores` (which add up the transtiion)
+        :param word_seq_lens: shape: (batch_size,)
+        :return: Marginal score. If you want probability, you need to use `torch.exp` to convert it into probability
+        """
+        batch_size = lstm_scores.size(0)
+        seq_len = lstm_scores.size(1)
+
+        alpha = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
+        beta = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
+
+        scores = self.transition.view(1, 1, self.label_size, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size) + \
+                 lstm_scores.view(batch_size, seq_len, 1, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size)
+        ## reverse the view of computing the score. we look from behind
+        rev_score = self.transition.transpose(0, 1).view(1, 1, self.label_size, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size) + \
+                    lstm_scores.view(batch_size, seq_len, 1, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size)
+
+        perm_idx = torch.zeros(batch_size, seq_len).to(self.device)
+        for batch_idx in range(batch_size):
+            perm_idx[batch_idx][:word_seq_lens[batch_idx]] = torch.range(word_seq_lens[batch_idx] - 1, 0, -1)
+        perm_idx = perm_idx.long()
+        for i, length in enumerate(word_seq_lens):
+            rev_score[i, :length] = rev_score[i, :length][perm_idx[i, :length]]
+
+        alpha[:, 0, :] = scores[:, 0, self.start_idx,
+                         :]  ## the first position of all labels = (the transition from start - > all labels) + current emission.
+        beta[:, 0, :] = rev_score[:, 0, self.end_idx, :]
+        for word_idx in range(1, seq_len):
+            before_log_sum_exp = alpha[:, word_idx - 1, :].view(batch_size, self.label_size, 1).expand(batch_size, self.label_size, self.label_size) + scores[ :, word_idx, :, :]
+            alpha[:, word_idx, :] = log_sum_exp_pytorch(before_log_sum_exp)
+
+            before_log_sum_exp = beta[:, word_idx - 1, :].view(batch_size, self.label_size, 1).expand(batch_size, self.label_size, self.label_size) + rev_score[:, word_idx, :, :]
+            beta[:, word_idx, :] = log_sum_exp_pytorch(before_log_sum_exp)
+
+        ### batch_size x label_size
+        last_alpha = torch.gather(alpha, 1, word_seq_lens.view(batch_size, 1, 1).expand(batch_size, 1, self.label_size) - 1).view( batch_size, self.label_size)
+        last_alpha += self.transition[:, self.end_idx].view(1, self.label_size).expand(batch_size, self.label_size)
+        last_alpha = log_sum_exp_pytorch(last_alpha.view(batch_size, self.label_size, 1)).view(batch_size, 1, 1).expand(batch_size, seq_len, self.label_size)
+
+        ## Because we need to use the beta variable later, we need to reverse back
+        for i, length in enumerate(word_seq_lens):
+            beta[i, :length] = beta[i, :length][perm_idx[i, :length]]
+
+        # `alpha + beta - last_alpha` is the standard way to obtain the marginal
+        # However, we have two emission scores overlap at each position, thus, we need to subtract one emission score
+        return alpha + beta - last_alpha - lstm_scores
+
     def forward_labeled(self, all_scores: torch.Tensor, word_seq_lens: torch.Tensor, tags: torch.Tensor, masks: torch.Tensor) -> torch.Tensor:
         '''
         Calculate the scores for the gold instances.
