@@ -145,8 +145,7 @@ class LinearCRF(nn.Module):
         for i, length in enumerate(word_seq_lens):
             rev_score[i, :length] = rev_score[i, :length][perm_idx[i, :length]]
 
-        alpha[:, 0, :] = scores[:, 0, self.start_idx,
-                         :]  ## the first position of all labels = (the transition from start - > all labels) + current emission.
+        alpha[:, 0, :] = scores[:, 0, self.start_idx, :]  ## the first position of all labels = (the transition from start - > all labels) + current emission.
         beta[:, 0, :] = rev_score[:, 0, self.end_idx, :]
         for word_idx in range(1, seq_len):
             before_log_sum_exp = alpha[:, word_idx - 1, :].view(batch_size, self.label_size, 1).expand(batch_size, self.label_size, self.label_size) + scores[ :, word_idx, :, :]
