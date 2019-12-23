@@ -48,6 +48,10 @@ class LinearCRF(nn.Module):
         labeled_score = self.forward_labeled(all_scores, word_seq_lens, tags, mask)
         return unlabed_score, labeled_score
 
+    def get_marginal_score(self, lstm_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
+        marginal = self.forward_backward(lstm_scores=lstm_scores, word_seq_lens=word_seq_lens)
+        return marginal
+
     def forward_unlabeled(self, all_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
         """
         Calculate the scores with the forward algorithm. Basically calculating the normalization term
@@ -73,7 +77,7 @@ class LinearCRF(nn.Module):
 
         return torch.sum(last_alpha)
 
-    def backward(self, lstm_scores, word_seq_lens) -> torch.Tensor:
+    def backward(self, lstm_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
         """
         Backward algorithm. A benchmark implementation which is ready to use.
         :param lstm_scores: shape: (batch_size, sent_len, label_size) NOTE: the score from LSTMs, not `all_scores` (which add up the transtiion)
@@ -114,7 +118,7 @@ class LinearCRF(nn.Module):
 
         return torch.sum(last_beta)
 
-    def forward_backward(self, lstm_scores, word_seq_lens) -> torch.Tensor:
+    def forward_backward(self, lstm_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
         """
         Forward-backward algorithm to compute the marginal probability (in log space)
         Basically, we follow the `backward` algorithm to obtain the backward scores.
