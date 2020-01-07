@@ -176,7 +176,7 @@ class Config:
                 else:
                     # self.word_embedding[self.word2idx[word], :] = self.embedding[self.UNK]
                     self.word_embedding[self.word2idx[word], :] = np.random.uniform(-scale, scale, [1, self.embedding_dim])
-            self.embedding = None
+            self.embedding = None  ## remove the pretrained embedding to save memory.
         else:
             self.word_embedding = np.empty([len(self.word2idx), self.embedding_dim])
             for word in self.word2idx:

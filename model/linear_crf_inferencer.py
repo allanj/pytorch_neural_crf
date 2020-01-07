@@ -57,7 +57,7 @@ class LinearCRF(nn.Module):
         Calculate the scores with the forward algorithm. Basically calculating the normalization term
         :param all_scores: (batch_size x max_seq_len x num_labels x num_labels) from (lstm scores + transition scores).
         :param word_seq_lens: (batch_size)
-        :return: (batch_size) for the normalization scores
+        :return: The score for all the possible structures.
         """
         batch_size = all_scores.size(0)
         seq_len = all_scores.size(1)
@@ -75,6 +75,7 @@ class LinearCRF(nn.Module):
         last_alpha += self.transition[:, self.end_idx].view(1, self.label_size).expand(batch_size, self.label_size)
         last_alpha = log_sum_exp_pytorch(last_alpha.view(batch_size, self.label_size, 1)).view(batch_size)
 
+        ## final score for the unlabeled network in this batch, with size: 1
         return torch.sum(last_alpha)
 
     def backward(self, lstm_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:

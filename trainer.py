@@ -177,7 +177,7 @@ def main():
     conf.use_iobes(trains)
     conf.use_iobes(devs)
     conf.use_iobes(tests)
-    conf.build_label_idx(trains)
+    conf.build_label_idx(trains + devs + tests)
 
     conf.build_word_idx(trains, devs, tests)
     conf.build_emb_table()

@@ -38,7 +38,7 @@ class NNCRF(nn.Module):
         :param chars: (batch_size x max_seq_len x max_char_len)
         :param char_seq_lens: (batch_size x max_seq_len)
         :param tags: (batch_size x max_seq_len)
-        :return: the loss with shape (batch_size)
+        :return: the total negative log-likelihood loss
         """
         lstm_scores = self.encoder(words, word_seq_lens, batch_context_emb, chars, char_seq_lens)
         batch_size = words.size(0)
