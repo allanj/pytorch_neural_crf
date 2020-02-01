@@ -86,6 +86,7 @@ class Config:
         self.clip = 5
         self.lr_decay = args.lr_decay
         self.device = torch.device(args.device)
+        self.max_no_incre = args.max_no_incre
 
     def read_pretrain_embedding(self) -> Tuple[Union[Dict[str, np.array], None], int]:
         """

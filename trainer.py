@@ -45,6 +45,7 @@ def parse_arguments(parser):
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
+    parser.add_argument('--max_no_incre', type=int, default=10, help="early stop when there is n epoch not increasing on dev")
 
     ##model hyperparameter
     parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
@@ -88,7 +89,7 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
         os.makedirs(model_folder)
     if not os.path.exists(res_folder):
         os.makedirs(res_folder)
-
+    no_incre_dev = 0 
     for i in range(1, epoch + 1):
         epoch_loss = 0
         start_time = time.time()
@@ -111,6 +112,7 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
         test_metrics = evaluate_model(config, model, test_batches, "test", test_insts)
         if dev_metrics[2] > best_dev[0]:
             print("saving the best model...")
+            no_incre_dev = 0
             best_dev[0] = dev_metrics[2]
             best_dev[1] = i
             best_test[0] = test_metrics[2]
@@ -121,7 +123,12 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
             pickle.dump(config, f)
             f.close()
             write_results(res_name, test_insts)
+        else:
+            no_incre_dev += 1
         model.zero_grad()
+        if no_incre_dev >= conf.max_no_incre:
+            print("early stop because there are %d epochs not increasing f1 on dev"%no_incre_dev)
+            break
 
     print("Archiving the best Model...")
     with tarfile.open(model_folder + "/" + model_folder + ".tar.gz", "w:gz") as tar:
