@@ -126,7 +126,7 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
         else:
             no_incre_dev += 1
         model.zero_grad()
-        if no_incre_dev >= conf.max_no_incre:
+        if no_incre_dev >= config.max_no_incre:
             print("early stop because there are %d epochs not increasing f1 on dev"%no_incre_dev)
             break
 
