@@ -23,17 +23,20 @@ class Reader:
         insts = []
         with open(file, 'r', encoding='utf-8') as f:
             words = []
+            ori_words = []
             labels = []
             for line in tqdm(f.readlines()):
                 line = line.rstrip()
                 if line == "":
-                    insts.append(Instance(Sentence(words), labels))
+                    insts.append(Instance(Sentence(words, ori_words), labels))
                     words = []
+                    ori_words = []
                     labels = []
                     if len(insts) == number:
                         break
                     continue
                 word, label = line.split()
+                ori_words.append(word)
                 if self.digit2zero:
                     word = re.sub('\d', '0', word) # replace digit with 0.
                 words.append(word)
