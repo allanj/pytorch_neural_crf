@@ -140,7 +140,7 @@ def write_results(filename: str, insts):
     f = open(filename, 'w', encoding='utf-8')
     for inst in insts:
         for i in range(len(inst.input)):
-            words = inst.input.words
+            words = inst.input.ori_words
             output = inst.output
             prediction = inst.prediction
             assert len(output) == len(prediction)
