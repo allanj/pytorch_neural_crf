@@ -8,6 +8,7 @@ import numpy as np
 from allennlp.commands.elmo import ElmoEmbedder
 import pickle
 import sys
+from tqdm import tqdm
 
 def parse_sentence(elmo: ElmoEmbedder, words: List[str], mode:str="average") -> np.array:
     """
@@ -52,7 +53,7 @@ def read_parse_write(elmo: ElmoEmbedder, infile: str, outfile: str, mode: str = 
     insts = reader.read_txt(infile, -1)
     f = open(outfile, 'wb')
     all_vecs = []
-    for inst in insts:
+    for inst in tqdm(insts, desc="ELMO features"):
         vec = parse_sentence(elmo, inst.input.words, mode=mode)
         all_vecs.append(vec)
     print("Finishing embedding ELMo sequences, saving the vector files.")
