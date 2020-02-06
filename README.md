@@ -7,13 +7,45 @@ We achieve the SOTA performance on both CoNLL-2003 and OntoNotes 5.0 English dat
 * Python >= 3.6 and PyTorch >= 0.4.1
 * AllenNLP package (if you use ELMo)
 
+If you use `conda`:
+
+```bash
+git clone https://github.com/allanj/pytorch_lstmcrf.git
+
+conda create -n pt_lstmcrf python=3.7
+conda activate pt_lstmcrf
+# check https://pytorch.org for the suitable version of your machines
+conda install pytorch=1.3.0 torchvision cudatoolkit=10.0 -c pytorch -n pt_lstmcrf
+pip install tqdm
+pip install termcolor
+pip install overrides
+pip install allennlp
+```
 
 ### Usage
 1. Put the Glove embedding file (`glove.6B.100d.txt`) under `data` directory (You can also use ELMo/BERT/Flair, Check below.) Note that if your embedding file does not exist, we just randomly initalize the embeddings.
 2. Simply run the following command and you can obtain results comparable to the benchmark above.
     ```bash
-    python3.6 trainer.py
+    python trainer.py
     ```
+    If you want to use your 1st GPU device `cuda:0` and train models for your own dataset with elmo embedding:
+    ```
+    python trainer.py --device cuda:0 --dataset YourData --context_emb elmo --model_folder saved_models
+    ```
+
+##### Training with your own data. 
+1. Create a folder `YourData` under the data directory. 
+2. Put the `train.txt`, `dev.txt` and `test.txt` files (make sure the format is compatible, i.e. the first column is words and the last column are tags) under this directory.  If you have a different format, simply modify the reader in `config/reader.py`. 
+3. Change the `dataset` argument to `YourData` when you run `trainer.py`. 
+
+
+
+### Using ELMo (and BERT) as contextualized word embeddings
+There are two ways to import the ELMo and BERT representations. We can either __preprocess the input files into vectors and load them in the program__ or __use the ELMo/BERT model to _forward_ the input tokens everytime__. The latter approach allows us to fine tune the parameters in ELMo and BERT. But the memory consumption is pretty high. For the purpose of most practical use case, I simply implemented the first method.
+1. Run the script with `python -m preprocess.get_elmo_vec YourData`. As a result, you get the vector files for your datasets.
+2. Run the main file with command: `python trainer.py --context_emb elmo`. You are good to go.
+
+For using BERT, it would be a similar manner. Let me know if you want further functionality. Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/lstmcrf.py#L82)). You may not need concatenation for BERT.
 
 ### Running with our pretrained English (with ELMo) Model
 We trained an English LSTM-CRF (+ELMo) model on the CoNLL-2003 dataset. 
@@ -31,19 +63,9 @@ prediction = predictor.predict(sentence)
 print(prediction)
 ```
 
-### Running with your own data. 
-1. Create a folder `YourData` under the data directory. 
-2. Put the `train.txt`, `dev.txt` and `test.txt` files (make sure the format is compatible) under this directory. 
-If you have a different format, simply modify the reader in `config/reader.py`.
-3. Change the `dataset` argument to `YourData` in the `main.py`.
 
 
-### Using ELMo (and BERT)
-There are two ways to import the ELMo and BERT representations. We can either __preprocess the input files into vectors and load them in the program__ or __use the ELMo/BERT model to _forward_ the input tokens everytime__. The latter approach allows us to fine tune the parameters in ELMo and BERT. But the memory consumption is pretty high. For the purpose of most practical use case, I simply implemented the first method.
-1. Run the scripts under `preprocess/get_elmo_vec.py`. As a result, you get the vector files for your datasets.
-2. Run the main file with command: `python3.6 trainer.py --context_emb elmo`. You are good to go.
 
-For using BERT, it would be a similar manner. Let me know if you want further functionality. Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/lstmcrf.py#L82)). You may not need concatenation for BERT.
 
 
 

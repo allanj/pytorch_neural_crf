@@ -35,7 +35,8 @@ class Reader:
                     if len(insts) == number:
                         break
                     continue
-                word, label = line.split()
+                ls = line.split()
+                word, label = ls[0],ls[-1]
                 ori_words.append(word)
                 if self.digit2zero:
                     word = re.sub('\d', '0', word) # replace digit with 0.

@@ -7,7 +7,7 @@ from config.reader import  Reader
 import numpy as np
 from allennlp.commands.elmo import ElmoEmbedder
 import pickle
-
+import sys
 
 def parse_sentence(elmo: ElmoEmbedder, words: List[str], mode:str="average") -> np.array:
     """
@@ -62,24 +62,24 @@ def read_parse_write(elmo: ElmoEmbedder, infile: str, outfile: str, mode: str = 
 
 def get_vector():
 
-    cuda_device = -1 # >=0 for gpu, using GPU should be much faster.
+    cuda_device = 0 # >=0 for gpu, using GPU should be much faster.
     elmo = load_elmo(cuda_device)
     mode= "average"
-    dataset="conll2003"
+    dataset=sys.argv[1]
 
 
     # Read train
-    file = "../data/"+dataset+"/train.txt"
+    file = "data/"+dataset+"/train.txt"
     outfile = file + ".elmo.vec"
     read_parse_write(elmo, file, outfile, mode)
 
     # Read dev
-    file = "../data/"+dataset+"/dev.txt"
+    file = "data/"+dataset+"/dev.txt"
     outfile = file + ".elmo.vec"
     read_parse_write(elmo, file, outfile, mode)
 
     # Read test
-    file = "../data/"+dataset+"/test.txt"
+    file = "data/"+dataset+"/test.txt"
     outfile = file + ".elmo.vec"
     read_parse_write(elmo, file, outfile, mode)
 
