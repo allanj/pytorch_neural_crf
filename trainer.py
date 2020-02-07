@@ -13,6 +13,7 @@ from config.utils import load_elmo_vec
 import pickle
 import tarfile
 import shutil
+from tqdm import tqdm
 
 def set_seed(opt, seed):
     random.seed(seed)
@@ -90,13 +91,13 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
     if not os.path.exists(res_folder):
         os.makedirs(res_folder)
     no_incre_dev = 0 
-    for i in range(1, epoch + 1):
+    for i in tqdm(range(1, epoch + 1), desc="Epoch"):
         epoch_loss = 0
         start_time = time.time()
         model.zero_grad()
         if config.optimizer.lower() == "sgd":
             optimizer = lr_decay(config, optimizer, i)
-        for index in np.random.permutation(len(batched_data)):
+        for index in tqdm(np.random.permutation(len(batched_data)), desc="--training batch", total=len(batched_data)):
             model.train()
             loss = model(*batched_data[index])
             epoch_loss += loss.item()
