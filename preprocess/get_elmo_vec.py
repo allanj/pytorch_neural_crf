@@ -18,15 +18,15 @@ def parse_sentence(elmo_vecs, mode:str="average") -> np.array:
     :return:
     """
     if mode == "average":
-        return np.average(vectors, 0)
+        return np.average(elmo_vecs, 0)
     elif mode == 'weighted_average':
-        return np.swapaxes(vectors, 0, 1)
+        return np.swapaxes(elmo_vecs, 0, 1)
     elif mode == 'last':
-        return vectors[-1, :, :]
+        return elmo_vecs[-1, :, :]
     elif mode == 'all':
-        return vectors
+        return elmo_vecs
     else:
-        return vectors
+        return elmo_vecs
 
 
 def load_elmo(cuda_device: int) -> ElmoEmbedder:
