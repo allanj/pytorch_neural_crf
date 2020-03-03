@@ -79,15 +79,18 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
 
     model_folder = config.model_folder
     res_folder = "results"
-    if os.path.exists(model_folder):
-        raise FileExistsError(f"The folder {model_folder} exists. Please either delete it or create a new one "
-                              f"to avoid override.")
-    model_name = model_folder + "/lstm_crf.m".format()
-    config_name = model_folder + "/config.conf"
-    res_name = res_folder + "/lstm_crf.results".format()
+    if os.path.exists("model_files/" + model_folder):
+        raise FileExistsError(
+            f"The folder model_files/{model_folder} exists. Please either delete it or create a new one "
+            f"to avoid override.")
+    model_name = f"model_files/{model_folder}/lstm_crf.m"
+    config_name = f"model_files/{model_folder}/config.conf"
+    res_name = f"{res_folder}/{model_folder}.results"
     print("[Info] The model will be saved to: %s.tar.gz" % (model_folder))
-    if not os.path.exists(model_folder):
-        os.makedirs(model_folder)
+    if not os.path.exists("model_files"):
+        os.makedirs("model_files")
+    if not os.path.exists(f"model_files/{model_folder}"):
+        os.makedirs(f"model_files/{model_folder}")
     if not os.path.exists(res_folder):
         os.makedirs(res_folder)
     no_incre_dev = 0 
@@ -132,8 +135,8 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
             break
 
     print("Archiving the best Model...")
-    with tarfile.open(model_folder + "/" + model_folder + ".tar.gz", "w:gz") as tar:
-        tar.add(model_folder, arcname=os.path.basename(model_folder))
+    with tarfile.open(f"model_files/{model_folder}/{model_folder}.tar.gz", "w:gz") as tar:
+        tar.add(f"model_files/{model_folder}", arcname=os.path.basename(model_folder))
 
     print("Finished archiving the models")
 
