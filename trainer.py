@@ -87,13 +87,9 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
     config_name = f"model_files/{model_folder}/config.conf"
     res_name = f"{res_folder}/{model_folder}.results"
     print("[Info] The model will be saved to: %s.tar.gz" % (model_folder))
-    if not os.path.exists("model_files"):
-        os.makedirs("model_files")
-    if not os.path.exists(f"model_files/{model_folder}"):
-        os.makedirs(f"model_files/{model_folder}")
-    if not os.path.exists(res_folder):
-        os.makedirs(res_folder)
-    no_incre_dev = 0 
+    os.makedirs(f"model_files/{model_folder}", exist_ok= True) ## create model files. not raise error if exist
+    os.makedirs(res_folder, exist_ok=True)
+    no_incre_dev = 0
     for i in tqdm(range(1, epoch + 1), desc="Epoch"):
         epoch_loss = 0
         start_time = time.time()
