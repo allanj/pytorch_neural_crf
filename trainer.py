@@ -83,9 +83,9 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
         raise FileExistsError(
             f"The folder model_files/{model_folder} exists. Please either delete it or create a new one "
             f"to avoid override.")
-    model_name = f"model_files/{model_folder}/lstm_crf.m"
-    config_name = f"model_files/{model_folder}/config.conf"
-    res_name = f"{res_folder}/{model_folder}.results"
+    model_path = f"model_files/{model_folder}/lstm_crf.m"
+    config_path = f"model_files/{model_folder}/config.conf"
+    res_path = f"{res_folder}/{model_folder}.results"
     print("[Info] The model will be saved to: %s.tar.gz" % (model_folder))
     os.makedirs(f"model_files/{model_folder}", exist_ok= True) ## create model files. not raise error if exist
     os.makedirs(res_folder, exist_ok=True)
@@ -117,12 +117,12 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
             best_dev[1] = i
             best_test[0] = test_metrics[2]
             best_test[1] = i
-            torch.save(model.state_dict(), model_name)
+            torch.save(model.state_dict(), model_path)
             # Save the corresponding config as well.
-            f = open(config_name, 'wb')
+            f = open(config_path, 'wb')
             pickle.dump(config, f)
             f.close()
-            write_results(res_name, test_insts)
+            write_results(res_path, test_insts)
         else:
             no_incre_dev += 1
         model.zero_grad()
@@ -139,10 +139,10 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
     print("The best dev: %.2f" % (best_dev[0]))
     print("The corresponding test: %.2f" % (best_test[0]))
     print("Final testing.")
-    model.load_state_dict(torch.load(model_name))
+    model.load_state_dict(torch.load(model_path))
     model.eval()
     evaluate_model(config, model, test_batches, "test", test_insts)
-    write_results(res_name, test_insts)
+    write_results(res_path, test_insts)
 
 
 def evaluate_model(config: Config, model: NNCRF, batch_insts_ids, name: str, insts: List[Instance]):
