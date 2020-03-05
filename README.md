@@ -90,3 +90,5 @@ print(prediction)
 - [ ] Integrate ELMo/BERT as a module instead of just features.
 - [ ] Clean up the code to better organization (e.g., `import` stuff)
 
+### Contributors
+A huge thanks to @yuchenlin for his contribution in this repo.
