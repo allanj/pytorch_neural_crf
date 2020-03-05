@@ -91,4 +91,4 @@ print(prediction)
 - [ ] Clean up the code to better organization (e.g., `import` stuff)
 
 ### Contributors
-A huge thanks to @yuchenlin for his contribution in this repo.
+A huge thanks to [@yuchenlin](https://github.com/yuchenlin) for his contribution in this repo.
