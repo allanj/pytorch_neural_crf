@@ -1,6 +1,8 @@
 ### Benchmark Performance
 
 Empirically, although `ADAM` optimizer converges faster, we found that using `SGD` with learning rate of `0.01` and `100` epochs is better than `ADAM`.
+The following results are obtained with the Glove embeddings (`glove.6B.100d.txt`).
+Download the embeddings and specify the path as arguments.
 
 * Experiments on the CoNLL-2003 dataset
     
