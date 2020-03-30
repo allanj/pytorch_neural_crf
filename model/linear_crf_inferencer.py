@@ -121,6 +121,7 @@ class LinearCRF(nn.Module):
 
     def forward_backward(self, lstm_scores: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
         """
+        Note: This function is not used unless you want to compute the marginal probability
         Forward-backward algorithm to compute the marginal probability (in log space)
         Basically, we follow the `backward` algorithm to obtain the backward scores.
         :param lstm_scores:   shape: (batch_size, sent_len, label_size) NOTE: the score from LSTMs, not `all_scores` (which add up the transtiion)
