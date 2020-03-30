@@ -46,7 +46,7 @@ class Config:
         # Model hyper parameters
         self.embedding_file = args.embedding_file
         self.embedding_dim = args.embedding_dim
-        self.context_emb = ContextEmb[args.context_emb]
+        self.static_context_emb = ContextEmb[args.static_context_emb]
         self.context_emb_size = 0
         self.embedding, self.embedding_dim = self.read_pretrain_embedding()
         self.word_embedding = None
@@ -59,6 +59,9 @@ class Config:
         self.char_emb_size = 25
         self.charlstm_hidden_dim = 50
         self.use_char_rnn = args.use_char_rnn
+
+        self.embedder_type = args.embedder_type
+        self.parallel_embedder = args.parallel_embedder
 
         # Data specification
         self.dataset = args.dataset
@@ -87,6 +90,7 @@ class Config:
         self.lr_decay = args.lr_decay
         self.device = torch.device(args.device)
         self.max_no_incre = args.max_no_incre
+        self.max_grad_norm = args.max_grad_norm
 
     def read_pretrain_embedding(self) -> Tuple[Union[Dict[str, np.array], None], int]:
         """

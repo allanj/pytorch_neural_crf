@@ -1,18 +1,18 @@
 import argparse
 import random
 import numpy as np
-from config import Reader, Config, ContextEmb, lr_decay, simple_batching, evaluate_batch_insts, get_optimizer, write_results, batching_list_instances
+from config import Reader, Config, ContextEmb, lr_decay, evaluate_batch_insts, get_optimizer, write_results, batching_list_instances
 import time
-from model.neuralcrf import NNCRF
+from model import NNCRF, BertNNCRF
 import torch
 from typing import List
 from common import Instance
 from termcolor import colored
 import os
-from config.utils import load_elmo_vec
+from config.utils import load_elmo_vec,tokenize_instance
+from config import context_models
 import pickle
 import tarfile
-import shutil
 from tqdm import tqdm
 
 def set_seed(opt, seed):
@@ -46,15 +46,23 @@ def parse_arguments(parser):
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
-    parser.add_argument('--max_no_incre', type=int, default=10, help="early stop when there is n epoch not increasing on dev")
+    parser.add_argument('--max_no_incre', type=int, default=20, help="early stop when there is n epoch not increasing on dev")
+    parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping")
 
     ##model hyperparameter
     parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
     parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
-    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo"],
-                        help="contextual word embedding")
+    parser.add_argument('--static_context_emb', type=str, default="none", choices=["none", "elmo"],
+                        help="static contextual word embedding")
+
+    parser.add_argument('--embedder_type', type=str, default="normal",
+                        choices=["normal"] + list(context_models.keys()),
+                        help="normal means word embedding + char, otherwise you can use 'bert-base-cased' and so on")
+    parser.add_argument('--parallel_embedder', type=int, default=0,
+                        choices=[0, 1],
+                        help="use parallel training for those (BERT) models in the transformers. Parallel on GPUs")
 
     args = parser.parse_args()
     for k in args.__dict__:
@@ -63,7 +71,10 @@ def parse_arguments(parser):
 
 
 def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_insts: List[Instance], test_insts: List[Instance]):
-    model = NNCRF(config)
+    if config.embedder_type == "normal":
+        model = NNCRF(config)
+    else:
+        model = BertNNCRF(config)
     optimizer = get_optimizer(config, model)
     train_num = len(train_insts)
     print("number of instances: %d" % (train_num))
@@ -98,9 +109,11 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
             optimizer = lr_decay(config, optimizer, i)
         for index in tqdm(np.random.permutation(len(batched_data)), desc="--training batch", total=len(batched_data)):
             model.train()
-            loss = model(*batched_data[index])
+            loss = model(**batched_data[index])
             epoch_loss += loss.item()
             loss.backward()
+            if config.max_grad_norm > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
             model.zero_grad()
 
@@ -152,8 +165,8 @@ def evaluate_model(config: Config, model: NNCRF, batch_insts_ids, name: str, ins
     batch_size = config.batch_size
     for batch in batch_insts_ids:
         one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
-        batch_max_scores, batch_max_ids = model.decode(batch)
-        metrics += evaluate_batch_insts(one_batch_insts, batch_max_ids, batch[-1], batch[1], config.idx2labels)
+        batch_max_scores, batch_max_ids = model.decode(**batch)
+        metrics += evaluate_batch_insts(one_batch_insts, batch_max_ids, batch["labels"], batch["word_seq_lens"], config.idx2labels)
         batch_id += 1
     p, total_predict, total_entity = metrics[0], metrics[1], metrics[2]
     precision = p * 1.0 / total_predict * 100 if total_predict != 0 else 0
@@ -175,11 +188,11 @@ def main():
     devs = reader.read_txt(conf.dev_file, conf.dev_num)
     tests = reader.read_txt(conf.test_file, conf.test_num)
 
-    if conf.context_emb != ContextEmb.none:
-        print('Loading the ELMo vectors for all datasets.')
-        conf.context_emb_size = load_elmo_vec(conf.train_file + "." + conf.context_emb.name + ".vec", trains)
-        load_elmo_vec(conf.dev_file + "." + conf.context_emb.name + ".vec", devs)
-        load_elmo_vec(conf.test_file + "." + conf.context_emb.name + ".vec", tests)
+    if conf.static_context_emb != ContextEmb.none:
+        print('Loading the static ELMo vectors for all datasets.')
+        conf.context_emb_size = load_elmo_vec(conf.train_file + "." + conf.static_context_emb.name + ".vec", trains)
+        load_elmo_vec(conf.dev_file + "." + conf.static_context_emb.name + ".vec", devs)
+        load_elmo_vec(conf.test_file + "." + conf.static_context_emb.name + ".vec", tests)
 
     conf.use_iobes(trains)
     conf.use_iobes(devs)
@@ -192,6 +205,11 @@ def main():
     conf.map_insts_ids(trains)
     conf.map_insts_ids(devs)
     conf.map_insts_ids(tests)
+
+    if conf.embedder_type != "normal":
+        ## if we use some transformer language models
+        ## we need to use their tokenizer
+        tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains + devs + tests)
 
     print("num chars: " + str(conf.num_char))
     # print(str(config.char2idx))
