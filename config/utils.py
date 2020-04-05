@@ -6,7 +6,7 @@ import pickle
 import torch.optim as optim
 
 import torch.nn as nn
-from transformers import AdamW
+from transformers import AdamW, PreTrainedTokenizer
 
 
 from config import PAD, ContextEmb, Config
@@ -40,8 +40,7 @@ def batching_list_instances(config: Config, insts: List[Instance]):
 def bert_batching(config, insts: List[Instance]) -> Dict[str,torch.Tensor]:
     batch_size = len(insts)
     batch_data = insts
-    # probably no need to sort because we will sort them in the model instead.
-    # batch_data = sorted(insts, key=lambda inst: len(inst.input.words), reverse=True) ##object-based not direct copy
+
     word_seq_len = torch.LongTensor(list(map(lambda inst: len(inst.input.words), batch_data)))
     max_seq_len = word_seq_len.max()
 
@@ -51,6 +50,9 @@ def bert_batching(config, insts: List[Instance]) -> Dict[str,torch.Tensor]:
     word_seq_tensor = torch.zeros([batch_size, max_tok_seq_len], dtype=torch.long)
     orig_to_tok_index = torch.zeros([batch_size, max_seq_len], dtype=torch.long)
     label_seq_tensor = torch.zeros([batch_size, max_seq_len], dtype=torch.long)
+    """
+    Bert model needs an input mask
+    """
     input_mask = torch.zeros([batch_size, max_tok_seq_len], dtype=torch.long)
     for idx in range(batch_size):
         word_seq_tensor[idx, :token_seq_len[idx]] = torch.LongTensor(batch_data[idx].word_ids)
@@ -196,30 +198,29 @@ def write_results(filename: str, insts):
 
 
 
-def tokenize_instance(tokenizer, insts: List[Instance]):
+def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[Instance]) -> None:
     """
     Tokenize the instances for BERT-based model
-    :param tokenizer:
-    :param insts:
-    :return:
+    :param tokenizer: Pretrained_Tokenizer from the transformer packages
+    :param insts: List[List[Instance]
+    :return: None
     """
     for inst in insts:
-        tokens = [] ## wordpiece tokens
-        # tok_to_orig_index = []
+        tokens = [] ## store the wordpiece tokens
         orig_to_tok_index = []
-
         for i, word in enumerate(inst.input.ori_words):
+            """
+            Note: by default, we use the first wordpiece token to represent the word
+            If you want to do something else (e.g., use last wordpiece to represent), modify them here.
+            """
             orig_to_tok_index.append(len(tokens))
             ## tokenize the word into word_piece
-            word_tokens = tokenizer.tokenize(word) ## word_piece tokenizer
+            word_tokens = transformer_tokenizer.tokenize(word)
             for sub_token in word_tokens:
-                #tok_to_orig_index.append(i)
                 tokens.append(sub_token)
 
-
-        input_ids = tokenizer.convert_tokens_to_ids(['[CLS]'] + tokens + ['SEP'])
+        input_ids = transformer_tokenizer.convert_tokens_to_ids(['[CLS]'] + tokens + ['SEP'])
         inst.word_ids = input_ids
-        # inst.tok_to_orig_index = tok_to_orig_index
         inst.orig_to_tok_index = orig_to_tok_index
 
 

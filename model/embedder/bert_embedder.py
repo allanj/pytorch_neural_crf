@@ -1,8 +1,7 @@
-
-
 import torch
 import torch.nn as nn
 from config.transformers_util import context_models
+
 class BertEmbedder(nn.Module):
 
     def __init__(self, config, print_info=True):
@@ -12,7 +11,10 @@ class BertEmbedder(nn.Module):
                                                                                    output_hidden_states= output_hidden_states).to(config.device)
         if config.parallel_embedder:
             self.model = nn.DataParallel(self.model)
-        # self.model.encoder.output_hidden_states=True
+        """
+        use the following line if you want to freeze the model, 
+        but don't forget also exclude the parameters in the optimizer
+        """
         # self.model.requires_grad = False
 
     def get_output_dim(self):

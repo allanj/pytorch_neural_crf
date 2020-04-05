@@ -207,8 +207,10 @@ def main():
     conf.map_insts_ids(tests)
 
     if conf.embedder_type != "normal":
-        ## if we use some transformer language models
-        ## we need to use their tokenizer
+        """
+        If we use the pretrained model from transformers
+        we need to use the pretrained tokenizer
+        """
         tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains + devs + tests)
 
     print("num chars: " + str(conf.num_char))
@@ -216,6 +218,7 @@ def main():
 
     print("num words: " + str(len(conf.word2idx)))
     # print(config.word2idx)
+
     train_model(conf, conf.num_epochs, trains, devs, tests)
 
 
