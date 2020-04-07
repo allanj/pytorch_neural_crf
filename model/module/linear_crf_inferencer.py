@@ -1,8 +1,5 @@
-
-
 import torch.nn as nn
 import torch
-
 from config import log_sum_exp_pytorch, START, STOP, PAD
 from typing import Tuple
 from overrides import overrides
@@ -16,7 +13,6 @@ class LinearCRF(nn.Module):
         self.label_size = config.label_size
         self.device = config.device
         self.use_char = config.use_char_rnn
-        self.context_emb = config.context_emb
 
         self.label2idx = config.label2idx
         self.labels = config.idx2labels
