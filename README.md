@@ -45,7 +45,7 @@ There are two ways to import the ELMo and BERT representations. We can either __
 1. Run the script with `python -m preprocess.get_elmo_vec YourData`. As a result, you get the vector files for your datasets.
 2. Run the main file with command: `python trainer.py --context_emb elmo`. You are good to go.
 
-For using BERT, it would be a similar manner. Let me know if you want further functionality. Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/lstmcrf.py#L82)). You may not need concatenation for BERT.
+For using BERT, it would be a similar manner. Let me know if you want further functionality. Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/bilstm_encoder.py#L67)). You may not need concatenation for BERT.
 
 ### Running with our pretrained English (with ELMo) Model
 We trained an English LSTM-CRF (+ELMo) model on the CoNLL-2003 dataset. 
