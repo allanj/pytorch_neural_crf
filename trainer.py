@@ -1,7 +1,7 @@
 import argparse
 import random
 import numpy as np
-from config import Reader, Config, ContextEmb, lr_decay, evaluate_batch_insts, get_optimizer, write_results, batching_list_instances
+from config import Reader, Config, ContextEmb, lr_decay, evaluate_batch_insts, get_optimizer, write_results, batching_list_instances, get_huggingface_optimizer_and_scheduler
 import time
 from model import NNCRF, BertNNCRF
 import torch
@@ -31,7 +31,7 @@ def parse_arguments(parser):
     parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
                         help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
-    parser.add_argument('--digit2zero', action="store_true", default=True,
+    parser.add_argument('--digit2zero', action="store_true", default=False,
                         help="convert the number to 0, make it true is better")
     parser.add_argument('--dataset', type=str, default="conll2003_sample")
     parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
@@ -72,11 +72,7 @@ def parse_arguments(parser):
 
 
 def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_insts: List[Instance], test_insts: List[Instance]):
-    if config.embedder_type == "normal":
-        model = NNCRF(config)
-    else:
-        model = BertNNCRF(config)
-    optimizer = get_optimizer(config, model)
+    ### Data Processing Info
     train_num = len(train_insts)
     print("number of instances: %d" % (train_num))
     print(colored("[Shuffled] Shuffle the training instance ids", "red"))
@@ -86,15 +82,24 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
     dev_batches = batching_list_instances(config, dev_insts)
     test_batches = batching_list_instances(config, test_insts)
 
+
+    if config.embedder_type == "normal":
+        model = NNCRF(config)
+        optimizer = get_optimizer(config, model)
+        scheduler = None
+    else:
+        model = BertNNCRF(config)
+        optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(batched_data) * epoch)
+
     best_dev = [-1, 0]
     best_test = [-1, 0]
 
     model_folder = config.model_folder
     res_folder = "results"
-    if os.path.exists("model_files/" + model_folder):
-        raise FileExistsError(
-            f"The folder model_files/{model_folder} exists. Please either delete it or create a new one "
-            f"to avoid override.")
+    # if os.path.exists("model_files/" + model_folder):
+    #     raise FileExistsError(
+    #         f"The folder model_files/{model_folder} exists. Please either delete it or create a new one "
+    #         f"to avoid override.")
     model_path = f"model_files/{model_folder}/lstm_crf.m"
     config_path = f"model_files/{model_folder}/config.conf"
     res_path = f"{res_folder}/{model_folder}.results"
@@ -116,8 +121,10 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
             if config.max_grad_norm > 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
+            optimizer.zero_grad()
             model.zero_grad()
-
+            if scheduler is not None:
+                scheduler.step()
         end_time = time.time()
         print("Epoch %d: %.5f, Time is %.2fs" % (i, epoch_loss, end_time - start_time), flush=True)
 
