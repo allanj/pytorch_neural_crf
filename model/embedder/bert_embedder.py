@@ -40,4 +40,4 @@ class BertEmbedder(nn.Module):
         # word_rep = torch.cat(word_rep[-4:], dim=2)
         batch_size, _, rep_size = word_rep.size()
         _, max_sent_len = orig_to_token_index.size()
-        return torch.gather(word_rep[1:], 1, orig_to_token_index.unsqueeze(-1).expand(batch_size, max_sent_len, rep_size))
+        return torch.gather(word_rep[:, 1:, :], 1, orig_to_token_index.unsqueeze(-1).expand(batch_size, max_sent_len, rep_size))
