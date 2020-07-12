@@ -171,14 +171,15 @@ def evaluate_model(config: Config, model: NNCRF, batch_insts_ids, name: str, ins
     p_dict, total_predict_dict, total_entity_dict = Counter(), Counter(), Counter()
     batch_id = 0
     batch_size = config.batch_size
-    for batch in batch_insts_ids:
-        one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
-        batch_max_scores, batch_max_ids = model.decode(**batch)
-        batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch["labels"], batch["word_seq_lens"], config.idx2labels)
-        p_dict += batch_p
-        total_predict_dict += batch_predict
-        total_entity_dict += batch_total
-        batch_id += 1
+    with torch.no_grad():
+        for batch in batch_insts_ids:
+            one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
+            batch_max_scores, batch_max_ids = model.decode(**batch)
+            batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch["labels"], batch["word_seq_lens"], config.idx2labels)
+            p_dict += batch_p
+            total_predict_dict += batch_predict
+            total_entity_dict += batch_total
+            batch_id += 1
     if print_each_type_metric:
         for key in total_entity_dict:
             precision_key, recall_key, fscore_key = get_metric(p_dict[key], total_entity_dict[key], total_predict_dict[key])
