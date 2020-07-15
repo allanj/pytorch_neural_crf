@@ -46,6 +46,10 @@ There are two ways to import the ELMo and BERT representations. We can either __
 2. Run the main file with command: `python trainer.py --context_emb elmo`. You are good to go.
 
 For using BERT, it would be a similar manner. Let me know if you want further functionality. Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/bilstm_encoder.py#L67)). You may not need concatenation for BERT.
+You need to install [HuggingFace Transformers](https://github.com/huggingface/transformers) and [BERT-As-Service](https://github.com/hanxiao/bert-as-service) before running the following preprocessing script.
+1.  Run the script with `python -m preprocess.get_bert_vec YourData`.
+
+I suggest you also quickly read the documentation in BERT-As-Service before preprocessing.
 
 ### Running with our pretrained English (with ELMo) Model
 We trained an English LSTM-CRF (+ELMo) model on the CoNLL-2003 dataset. 
@@ -83,7 +87,7 @@ print(prediction)
 
 ### Ongoing Plan
 
-- [x] Support for ELMo as features
+- [x] Support for ELMo/BERT as features
 - [x] Interactive model where we can just import model and decode a setence
 - [x] Make the code more modularized (separate the encoder and inference layers) and readable (by adding more comments)
 - [x] Put the benchmark performance documentation to another markdown file

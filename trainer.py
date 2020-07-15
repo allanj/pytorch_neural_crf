@@ -53,7 +53,7 @@ def parse_arguments(parser):
     parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
-    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo"],
+    parser.add_argument('--context_emb', type=str, default="none", choices=["none", "elmo", "bert"],
                         help="contextual word embedding")
 
     args = parser.parse_args()
