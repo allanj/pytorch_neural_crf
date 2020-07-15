@@ -71,7 +71,7 @@ def read_parse_write(elmo: ElmoEmbedder, infile: str, outfile: str, mode: str = 
 
 def get_vector():
 
-    cuda_device = 0 # >=0 for gpu, using GPU should be much faster.
+    cuda_device = 0 # >=0 for gpu, using GPU should be much faster.  < 0 for cpu.
     elmo = load_elmo(cuda_device)
     mode= "average"
     dataset=sys.argv[1]
