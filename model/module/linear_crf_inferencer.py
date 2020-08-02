@@ -20,12 +20,12 @@ class LinearCRF(nn.Module):
         self.end_idx = self.label2idx[STOP]
         self.pad_idx = self.label2idx[PAD]
 
-        # initialize the following transition (anything never -> start. end never -> anything. Same thing for the padding label)
+        # initialize the following transition (anything never cannot -> start. end never  cannot-> anything. Same thing for the padding label)
         init_transition = torch.randn(self.label_size, self.label_size).to(self.device)
-        init_transition[:, self.start_idx] = -10000.0
-        init_transition[self.end_idx, :] = -10000.0
-        init_transition[:, self.pad_idx] = -10000.0
-        init_transition[self.pad_idx, :] = -10000.0
+        # init_transition[:, self.start_idx] = -10000.0
+        # init_transition[self.end_idx, :] = -10000.0
+        # init_transition[:, self.pad_idx] = -10000.0
+        # init_transition[self.pad_idx, :] = -10000.0
 
         self.transition = nn.Parameter(init_transition)
 

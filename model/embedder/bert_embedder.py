@@ -2,11 +2,14 @@ import torch
 import torch.nn as nn
 from config.transformers_util import context_models
 
+from termcolor import colored
 class BertEmbedder(nn.Module):
 
     def __init__(self, config, print_info=True):
         super(BertEmbedder, self).__init__()
         output_hidden_states = False ## to use all hidden states or not
+        print(colored(f"[Model Info] Loading pretrained language model {config.embedder_type}", "red"))
+
         self.model = context_models[config.embedder_type]["model"].from_pretrained(config.embedder_type,
                                                                                    output_hidden_states= output_hidden_states).to(config.device)
         if config.parallel_embedder:

@@ -33,32 +33,32 @@ def parse_arguments(parser):
     parser.add_argument('--seed', type=int, default=42, help="random seed")
     parser.add_argument('--digit2zero', action="store_true", default=False,
                         help="convert the number to 0, make it true is better")
-    parser.add_argument('--dataset', type=str, default="conll2003_sample")
+    parser.add_argument('--dataset', type=str, default="conll2003")
     parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
                         help="we will be using random embeddings if file do not exist")
     parser.add_argument('--embedding_dim', type=int, default=100)
-    parser.add_argument('--optimizer', type=str, default="sgd")
-    parser.add_argument('--learning_rate', type=float, default=0.01)  ##only for sgd now
+    parser.add_argument('--optimizer', type=str, default="adamw")
+    parser.add_argument('--learning_rate', type=float, default=2e-5)  ##only for sgd now
     parser.add_argument('--momentum', type=float, default=0.0)
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
-    parser.add_argument('--batch_size', type=int, default=10, help="default batch size is 10 (works well)")
+    parser.add_argument('--batch_size', type=int, default=30, help="default batch size is 10 (works well)")
     parser.add_argument('--num_epochs', type=int, default=100, help="Usually we set to 10.")
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
-    parser.add_argument('--max_no_incre', type=int, default=20, help="early stop when there is n epoch not increasing on dev")
-    parser.add_argument('--max_grad_norm', type=float, default=-1.0, help="The maximum gradient norm, if <=0, means no clipping")
+    parser.add_argument('--max_no_incre', type=int, default=100, help="early stop when there is n epoch not increasing on dev")
+    parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping")
 
     ##model hyperparameter
     parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
-    parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM")
+    parser.add_argument('--hidden_dim', type=int, default=0, help="hidden size of the LSTM")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
     parser.add_argument('--static_context_emb', type=str, default="none", choices=["none", "elmo"],
                         help="static contextual word embedding")
 
-    parser.add_argument('--embedder_type', type=str, default="normal",
+    parser.add_argument('--embedder_type', type=str, default="bert-base-cased",
                         choices=["normal"] + list(context_models.keys()),
                         help="normal means word embedding + char, otherwise you can use 'bert-base-cased' and so on")
     parser.add_argument('--parallel_embedder', type=int, default=0,
@@ -218,25 +218,35 @@ def main():
     conf.use_iobes(tests)
     conf.build_label_idx(trains + devs + tests)
 
-    conf.build_word_idx(trains, devs, tests)
-    conf.build_emb_table()
+    if conf.embedder_type == "normal":
+        conf.build_word_idx(trains, devs, tests)
+        conf.build_emb_table()
 
-    conf.map_insts_ids(trains)
-    conf.map_insts_ids(devs)
-    conf.map_insts_ids(tests)
-
-    if conf.embedder_type != "normal":
+        conf.map_insts_ids(trains)
+        conf.map_insts_ids(devs)
+        conf.map_insts_ids(tests)
+        print("[Data Info] num chars: " + str(conf.num_char))
+        # print(str(conf.char2idx))
+        print("[Data Info] num words: " + str(len(conf.word2idx)))
+        # print(config.word2idx)
+    else:
+        # conf.build_word_idx(trains, devs, tests)
+        # conf.build_emb_table()
+        #
+        # conf.map_insts_ids(trains)
+        # conf.map_insts_ids(devs)
+        # conf.map_insts_ids(tests)
+        # print("[Data Info] num chars: " + str(conf.num_char))
+        # print(str(conf.char2idx))
+        # print("[Data Info] num words: " + str(len(conf.word2idx)))
         """
         If we use the pretrained model from transformers
         we need to use the pretrained tokenizer
         """
-        tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains + devs + tests)
+        print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "red"))
+        tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains + devs + tests, conf.label2idx)
 
-    print("num chars: " + str(conf.num_char))
-    # print(str(config.char2idx))
 
-    print("num words: " + str(len(conf.word2idx)))
-    # print(config.word2idx)
 
     train_model(conf, conf.num_epochs, trains, devs, tests)
 

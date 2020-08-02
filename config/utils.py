@@ -237,7 +237,7 @@ def get_metric(p_num: int, total_num: int, total_predicted_num: int) -> Tuple[fl
     fscore = 2.0 * precision * recall / (precision + recall) if precision != 0 or recall != 0 else 0
     return precision, recall, fscore
 
-def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[Instance]) -> None:
+def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[Instance], label2idx: Dict[str, int]) -> None:
     """
     Tokenize the instances for BERT-based model
     :param tokenizer: Pretrained_Tokenizer from the transformer packages
@@ -257,8 +257,12 @@ def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[In
             word_tokens = transformer_tokenizer.tokenize(word)
             for sub_token in word_tokens:
                 tokens.append(sub_token)
+        if inst.output:
+            inst.output_ids = []
+            for label in inst.output:
+                inst.output_ids.append(label2idx[label])
 
-        input_ids = transformer_tokenizer.convert_tokens_to_ids(['[CLS]'] + tokens + ['SEP'])
+        input_ids = transformer_tokenizer.convert_tokens_to_ids(['[CLS]'] + tokens + ['[SEP]'])
         inst.word_ids = input_ids
         inst.orig_to_tok_index = orig_to_tok_index
 
