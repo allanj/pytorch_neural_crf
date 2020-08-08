@@ -1,12 +1,12 @@
 import numpy as np
 import torch
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from common import Instance
 import pickle
 import torch.optim as optim
 
 import torch.nn as nn
-
+from transformers import AdamW, PreTrainedTokenizer, get_linear_schedule_with_warmup
 
 
 from config import PAD, ContextEmb, Config
@@ -30,11 +30,46 @@ def batching_list_instances(config: Config, insts: List[Instance]):
     batched_data = []
     for batch_id in range(total_batch):
         one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
-        batched_data.append(simple_batching(config, one_batch_insts))
+        if config.embedder_type!= "normal":
+            batched_data.append(bert_batching(config, one_batch_insts))
+        else:
+            batched_data.append(simple_batching(config, one_batch_insts))
 
     return batched_data
 
-def simple_batching(config, insts: List[Instance]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
+def bert_batching(config, insts: List[Instance]) -> Dict[str,torch.Tensor]:
+    batch_size = len(insts)
+    batch_data = insts
+
+    word_seq_len = torch.LongTensor(list(map(lambda inst: len(inst.input.words), batch_data)))
+    max_seq_len = word_seq_len.max()
+
+    token_seq_len = torch.LongTensor(list(map(lambda inst: len(inst.word_ids), batch_data)))
+    max_tok_seq_len = token_seq_len.max()
+
+    word_seq_tensor = torch.zeros([batch_size, max_tok_seq_len], dtype=torch.long)
+    orig_to_tok_index = torch.zeros([batch_size, max_seq_len], dtype=torch.long)
+    label_seq_tensor = torch.zeros([batch_size, max_seq_len], dtype=torch.long)
+    """
+    Bert model needs an input mask
+    """
+    input_mask = torch.zeros([batch_size, max_tok_seq_len], dtype=torch.long)
+    for idx in range(batch_size):
+        word_seq_tensor[idx, :token_seq_len[idx]] = torch.LongTensor(batch_data[idx].word_ids)
+        orig_to_tok_index[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].orig_to_tok_index)
+        input_mask[idx, :token_seq_len[idx]]  = 1
+        if batch_data[idx].output_ids:
+            label_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].output_ids)
+
+    return  {
+        "words": word_seq_tensor.to(config.device),
+        "word_seq_lens": word_seq_len.to(config.device),
+        "orig_to_tok_index": orig_to_tok_index.to(config.device),
+        "input_mask": input_mask.to(config.device),
+        "labels": label_seq_tensor.to(config.device)
+    }
+
+def simple_batching(config, insts: List[Instance]) -> Dict[str,torch.Tensor]:
 
     """
     batching these instances together and return tensors. The seq_tensors for word and char contain their word id and char id.
@@ -53,24 +88,27 @@ def simple_batching(config, insts: List[Instance]) -> Tuple[torch.Tensor, torch.
     word_seq_len = torch.LongTensor(list(map(lambda inst: len(inst.input.words), batch_data)))
     max_seq_len = word_seq_len.max()
 
+    ## usually these two lengths are same, but if we use BERT tokenization, max_seq_len could be larger
+
     # NOTE: Use 1 here because the CharBiLSTM accepts
     char_seq_len = torch.LongTensor([list(map(len, inst.input.words)) + [1] * (int(max_seq_len) - len(inst.input.words)) for inst in batch_data])
     max_char_seq_len = char_seq_len.max()
 
     context_emb_tensor = None
-    if config.context_emb != ContextEmb.none:
+    if config.static_context_emb != ContextEmb.none:
         emb_size = insts[0].elmo_vec.shape[1]
-        context_emb_tensor = torch.zeros((batch_size, max_seq_len, emb_size))
+        context_emb_tensor = torch.zeros([batch_size, max_seq_len, emb_size])
 
-    word_seq_tensor = torch.zeros((batch_size, max_seq_len), dtype=torch.long)
-    label_seq_tensor =  torch.zeros((batch_size, max_seq_len), dtype=torch.long)
-    char_seq_tensor = torch.zeros((batch_size, max_seq_len, max_char_seq_len), dtype=torch.long)
+    word_seq_tensor = torch.zeros([batch_size, max_seq_len], dtype=torch.long)
+    label_seq_tensor =  torch.zeros([batch_size, max_seq_len], dtype=torch.long)
+    char_seq_tensor = torch.zeros([batch_size, max_seq_len, max_char_seq_len], dtype=torch.long)
 
     for idx in range(batch_size):
+
         word_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].word_ids)
         if batch_data[idx].output_ids:
             label_seq_tensor[idx, :word_seq_len[idx]] = torch.LongTensor(batch_data[idx].output_ids)
-        if config.context_emb != ContextEmb.none:
+        if config.static_context_emb != ContextEmb.none:
             context_emb_tensor[idx, :word_seq_len[idx], :] = torch.from_numpy(batch_data[idx].elmo_vec)
 
         for word_idx in range(word_seq_len[idx]):
@@ -84,7 +122,14 @@ def simple_batching(config, insts: List[Instance]) -> Tuple[torch.Tensor, torch.
     word_seq_len = word_seq_len.to(config.device)
     char_seq_len = char_seq_len.to(config.device)
 
-    return word_seq_tensor, word_seq_len, context_emb_tensor, char_seq_tensor, char_seq_len, label_seq_tensor
+    return {
+        "words" : word_seq_tensor,
+        "word_seq_lens": word_seq_len,
+        "context_emb" : context_emb_tensor,
+        "chars" : char_seq_tensor,
+        "char_seq_lens": char_seq_len,
+        "labels" : label_seq_tensor
+    }
 
 
 def lr_decay(config, optimizer: optim.Optimizer, epoch: int) -> optim.Optimizer:
@@ -121,15 +166,23 @@ def load_elmo_vec(file: str, insts: List[Instance]):
 
 
 
-def get_optimizer(config: Config, model: nn.Module):
+
+
+def get_optimizer(config: Config, model: nn.Module,
+                  weight_decay: float = 0.0,
+                  eps: float = 1e-8,
+                  warmup_step: int = 0):
     params = model.parameters()
     if config.optimizer.lower() == "sgd":
-        print(
-            colored("Using SGD: lr is: {}, L2 regularization is: {}".format(config.learning_rate, config.l2), 'yellow'))
+        print(colored("Using SGD: lr is: {}, L2 regularization is: {}".format(config.learning_rate, config.l2), 'yellow'))
         return optim.SGD(params, lr=config.learning_rate, weight_decay=float(config.l2))
     elif config.optimizer.lower() == "adam":
-        print(colored("Using Adam", 'yellow'))
-        return optim.Adam(params)
+        print(colored(f"Using Adam, with learning rate: {config.learning_rate}", 'yellow'))
+        return optim.Adam(model.parameters(), lr=config.learning_rate)
+    elif config.optimizer.lower() == "adamw":
+        print(colored(f"Using AdamW optimizeer with {config.learning_rate} learning rate, "
+                      f"eps: {1e-8}", 'yellow'))
+        return AdamW(model.parameters(), lr=config.learning_rate, eps=1e-8)
     else:
         print("Illegal optimizer: {}".format(config.optimizer))
         exit(1)
@@ -147,3 +200,19 @@ def write_results(filename: str, insts):
             f.write("{}\t{}\t{}\t{}\n".format(i, words[i], output[i], prediction[i]))
         f.write("\n")
     f.close()
+
+def get_metric(p_num: int, total_num: int, total_predicted_num: int) -> Tuple[float, float, float]:
+    """
+    Return the metrics of precision, recall and f-score, based on the number
+    (We make this small piece of function in order to reduce the code effort and less possible to have typo error)
+    :param p_num:
+    :param total_num:
+    :param total_predicted_num:
+    :return:
+    """
+    precision = p_num * 1.0 / total_predicted_num * 100 if total_predicted_num != 0 else 0
+    recall = p_num * 1.0 / total_num * 100 if total_num != 0 else 0
+    fscore = 2.0 * precision * recall / (precision + recall) if precision != 0 or recall != 0 else 0
+    return precision, recall, fscore
+
+

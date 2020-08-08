@@ -1,8 +1,5 @@
-
-
 import torch.nn as nn
 import torch
-
 from config import log_sum_exp_pytorch, START, STOP, PAD
 from typing import Tuple
 from overrides import overrides
@@ -16,7 +13,6 @@ class LinearCRF(nn.Module):
         self.label_size = config.label_size
         self.device = config.device
         self.use_char = config.use_char_rnn
-        self.context_emb = config.context_emb
 
         self.label2idx = config.label2idx
         self.labels = config.idx2labels
@@ -24,12 +20,12 @@ class LinearCRF(nn.Module):
         self.end_idx = self.label2idx[STOP]
         self.pad_idx = self.label2idx[PAD]
 
-        # initialize the following transition (anything never -> start. end never -> anything. Same thing for the padding label)
+        # initialize the following transition (anything never cannot -> start. end never  cannot-> anything. Same thing for the padding label)
         init_transition = torch.randn(self.label_size, self.label_size).to(self.device)
-        init_transition[:, self.start_idx] = -10000.0
-        init_transition[self.end_idx, :] = -10000.0
-        init_transition[:, self.pad_idx] = -10000.0
-        init_transition[self.pad_idx, :] = -10000.0
+        # init_transition[:, self.start_idx] = -10000.0
+        # init_transition[self.end_idx, :] = -10000.0
+        # init_transition[:, self.pad_idx] = -10000.0
+        # init_transition[self.pad_idx, :] = -10000.0
 
         self.transition = nn.Parameter(init_transition)
 
