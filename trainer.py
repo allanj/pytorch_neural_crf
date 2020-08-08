@@ -39,26 +39,26 @@ def parse_arguments(parser):
     parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
                         help="we will be using random embeddings if file do not exist")
     parser.add_argument('--embedding_dim', type=int, default=100)
-    parser.add_argument('--optimizer', type=str, default="adamw")
-    parser.add_argument('--learning_rate', type=float, default=2e-5)  ##only for sgd now
+    parser.add_argument('--optimizer', type=str, default="adamw", help="This would be useless if you are working with transformers package")
+    parser.add_argument('--learning_rate', type=float, default=2e-5, help="usually we use 0.01 for sgd but 2e-5 working with bert/roberta")
     parser.add_argument('--momentum', type=float, default=0.0)
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
-    parser.add_argument('--batch_size', type=int, default=30, help="default batch size is 10 (works well)")
+    parser.add_argument('--batch_size', type=int, default=30, help="default batch size is 10 (works well for normal neural crf), here default 30 for bert-based crf")
     parser.add_argument('--num_epochs', type=int, default=100, help="Usually we set to 10.")
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
-    parser.add_argument('--max_no_incre', type=int, default=100, help="early stop when there is n epoch not increasing on dev")
-    parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping")
+    parser.add_argument('--max_no_incre', type=int, default=30, help="early stop when there is n epoch not increasing on dev")
+    parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping, usually we don't use clipping for normal neural ncrf")
 
     ##model hyperparameter
     parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
-    parser.add_argument('--hidden_dim', type=int, default=0, help="hidden size of the LSTM")
+    parser.add_argument('--hidden_dim', type=int, default=0, help="hidden size of the LSTM, usually we set to 200 for LSTM-CRF")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
     parser.add_argument('--static_context_emb', type=str, default="none", choices=["none", "elmo"],
-                        help="static contextual word embedding")
+                        help="static contextual word embedding, our old ways to incorporate ELMo and BERT.")
 
     parser.add_argument('--embedder_type', type=str, default="bert-base-cased",
                         choices=["normal"] + list(context_models.keys()),
@@ -90,6 +90,10 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
         optimizer = get_optimizer(config, model)
         scheduler = None
     else:
+        print(
+            colored(f"[Model Info]: Working with transformers package from huggingface with {config.embedder_type}", 'red'))
+        print(colored(f"[Optimizer Information]: You should be aware that you are using the optimizer from huggingface.", 'red'))
+        print(colored(f"[Optimizer Information]: Change the optimier in transformers_util.py if you want to make some modifications.", 'red'))
         model = TransformersCRF(config)
         optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(batched_data) * epoch)
 
