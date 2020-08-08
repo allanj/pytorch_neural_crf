@@ -73,7 +73,7 @@ self.model.requires_grad = False
 Using Word embedding or external contextualized embedding (ELMo/BERT) can be found in [here](/docs/other_usage.md).
 
 
-##### Training with your own data. 
+### Training with your own data. 
 1. Create a folder `YourData` under the data directory. 
 2. Put the `train.txt`, `dev.txt` and `test.txt` files (make sure the format is compatible, i.e. the first column is words and the last column are tags) under this directory.  If you have a different format, simply modify the reader in `config/reader.py`. 
 3. Change the `dataset` argument to `YourData` when you run `trainer.py`. 
