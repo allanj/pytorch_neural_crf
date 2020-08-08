@@ -24,7 +24,40 @@ pip install allennlp
 pip install transformers
 ```
 
-### Usage
+In the documentation below, we present four ways for users to run the code:
+1. Run the model via Fine-tuning BERT/Roberta/etc in Transformers package.
+2. Run the model with simply word embeddings.
+3. Run the model via static BERT/Roberta/etc in Transformers package.
+4. Run the model via static ELMo/BERT representations loaded from external vectors.
+
+Our default argument setup refers to the second one `1`.
+
+### Usage with Fine-Tuning BERT/Roberta (,etc) models in HuggingFace
+1. Simply replace the `embedder_type` argument with the model in HuggingFace. For example, if we are using `bert-base-cased`, we just need to 
+change the embedder type as `bert-base-cased`. 
+    ```bash
+    python trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models --embedder_type=bert-base-cased
+    ```
+2. (Optional) Using other models in HuggingFace.
+    1. Check if your prefered language model in `config/transformers_util.py`. If not, add to the utils. For example, if you would like to use `BERT-Large`. Add the following line to the dictionary.
+        ```python
+           'bert-large-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizer }
+        ```
+        This name `bert-large-cased` has to follow the naming rule by HuggingFace.
+    2. Run the main file with modified argument `embedder_type`:
+        ```bash
+           python trainer.py --embedder_type=bert-large-cased
+        ```
+        The default value for `embedder_type` is `normal`, which refers to the classic LSTM-CRF and we can use `static_context_emb` in previous section.
+        Changing the name to something like `bert-base-cased` or `bert-base-uncased`, we directly load the model from huggingface.
+        **Note**: if you use other models, remember to replace the [tokenization mechanism]() in `config/utils.py`.
+    3.  Finally, if you would like to know more about the details, read more details below:
+        * [Tokenization](/docs/bert_tokenization.md): For BERT, we use the first wordpice to represent a complete word. Check `config/transformers_util.py`
+        * [Embedder](/docs/bert_embedder.md): We show how to embed the input tokens to make word representation. Check `model/embedder/transformers_embedder.py`
+
+
+
+### Usage with Word Embedding (e.g., Glove)
 1. Put the Glove embedding file (`glove.6B.100d.txt`) under `data` directory (You can also use ELMo/BERT/Flair, Check below.) Note that if your embedding file does not exist, we just randomly initalize the embeddings.
 2. Simply run the following command and you can obtain results comparable to the benchmark above.
     ```bash
@@ -32,16 +65,21 @@ pip install transformers
     ```
     If you want to use your 1st GPU device `cuda:0` and train models for your own dataset with elmo embedding:
     ```
-    python trainer.py --device cuda:0 --dataset YourData --context_emb elmo --model_folder saved_models
+    python trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models \
+                     --optimizer=sgd --learning_rate=0.01 --batch_size=10 \
+                     --max_grad_norm=-1 --hidden_dim=200
     ```
 
-##### Training with your own data. 
-1. Create a folder `YourData` under the data directory. 
-2. Put the `train.txt`, `dev.txt` and `test.txt` files (make sure the format is compatible, i.e. the first column is words and the last column are tags) under this directory.  If you have a different format, simply modify the reader in `config/reader.py`. 
-3. Change the `dataset` argument to `YourData` when you run `trainer.py`. 
 
 
-### Using ELMo (and BERT) as contextualized word embeddings (Static, Feature-based Approach)
+### Using BERT/Roberta as contextualized word embeddings (Static, Feature-based Approach)
+Simply go to `model/transformers_embedder.py` and uncomment the following:
+```python
+self.model.requires_grad = False
+```
+
+
+### Using ELMo (and BERT) as contextualized word embeddings (Static, Feature-based Approach, with Externally Stored Vector)
 There are two ways to import the ELMo and BERT representations. We can either __preprocess the input files into vectors and load them in the program__ or __use the ELMo/BERT model to _forward_ the input tokens everytime__. The latter approach allows us to fine tune the parameters in ELMo and BERT. But the memory consumption is pretty high. For the purpose of most practical use case, I simply implemented the first method.
 1. Run the script with `python -m preprocess.get_elmo_vec YourData`. As a result, you get the vector files for your datasets.
 2. Run the main file with command: `python trainer.py --static_context_emb elmo`. You are good to go.
@@ -49,24 +87,10 @@ There are two ways to import the ELMo and BERT representations. We can either __
 For using BERT, it would be a similar manner. We recommend you use the [BERT-As-Service](https://github.com/hanxiao/bert-as-service) package for this purpose. (Note that you have to deal with the conversion between the wordpiece and word representations.)
 Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/lstmcrf.py#L82)). You may not need concatenation for BERT.
 
-### Fine-tune with BERT Embedding (Fine-tuning Approach)
-In this scenario, instead of using the `NNCRF` class in [`neuralcrf.py`](/model/neuralcrf.py), we will be using the `BertNNCRF` class in [`bert_neuralcrf.py`](/model/transformers_neuralcrf.py).
-1. Check if your prefered language model in `config/transformers_util.py`. If not, add to the utils. For example, if you would like to use `BERT-Large`. Add the following line to the dictionary.
-    ```python
-       'bert-large-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizer }
-    ```
-    This name `bert-large-cased` has to follow the naming rule by HuggingFace.
-2. Run the main file with this command:
-    ```bash
-       python trainer.py --embedder_type bert-large-cased
-    ```
-    The default value for `embedder_type` is `normal`, which refers to the classic LSTM-CRF and we can use `static_context_emb` in previous section.
-    Changing the name to something like `bert-base-cased` or `bert-base-uncased`, we directly load the model from huggingface.
-    **Note**: if you use other models, remember to replace the [tokenization mechanism]() in `config/utils.py`.
-3. (**Optional**) Finally, if you would like to know more about the details, read more details below:
-    * [Tokenization](/docs/bert_tokenization.md): For BERT, we use the first wordpice to represent a complete word
-    * [Embedder](/docs/bert_embedder.md): We show how to embed the input tokens to make word representation.
-
+##### Training with your own data. 
+1. Create a folder `YourData` under the data directory. 
+2. Put the `train.txt`, `dev.txt` and `test.txt` files (make sure the format is compatible, i.e. the first column is words and the last column are tags) under this directory.  If you have a different format, simply modify the reader in `config/reader.py`. 
+3. Change the `dataset` argument to `YourData` when you run `trainer.py`. 
 
 
 
