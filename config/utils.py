@@ -166,29 +166,7 @@ def load_elmo_vec(file: str, insts: List[Instance]):
 
 
 
-def get_huggingface_optimizer_and_scheduler(config: Config, model: nn.Module,
-                                            num_training_steps: int,
-                                            weight_decay: float = 0.0,
-                                            eps: float = 1e-8,
-                                            warmup_step: int = 0):
-    print(colored(f"Using AdamW optimizeer by HuggingFace with {config.learning_rate} learning rate, "
-                  f"eps: {eps}, weight decay: {weight_decay}, warmup_step: {warmup_step}, ", 'yellow'))
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": weight_decay,
-        },
-        {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-            "weight_decay": 0.0,
-        },
-    ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate, eps=eps)
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=warmup_step, num_training_steps=num_training_steps
-    )
-    return optimizer, scheduler
+
 
 def get_optimizer(config: Config, model: nn.Module,
                   weight_decay: float = 0.0,
@@ -236,34 +214,5 @@ def get_metric(p_num: int, total_num: int, total_predicted_num: int) -> Tuple[fl
     recall = p_num * 1.0 / total_num * 100 if total_num != 0 else 0
     fscore = 2.0 * precision * recall / (precision + recall) if precision != 0 or recall != 0 else 0
     return precision, recall, fscore
-
-def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[Instance], label2idx: Dict[str, int]) -> None:
-    """
-    Tokenize the instances for BERT-based model
-    :param tokenizer: Pretrained_Tokenizer from the transformer packages
-    :param insts: List[List[Instance]
-    :return: None
-    """
-    for inst in insts:
-        tokens = [] ## store the wordpiece tokens
-        orig_to_tok_index = []
-        for i, word in enumerate(inst.input.ori_words):
-            """
-            Note: by default, we use the first wordpiece token to represent the word
-            If you want to do something else (e.g., use last wordpiece to represent), modify them here.
-            """
-            orig_to_tok_index.append(len(tokens))
-            ## tokenize the word into word_piece
-            word_tokens = transformer_tokenizer.tokenize(word)
-            for sub_token in word_tokens:
-                tokens.append(sub_token)
-        if inst.output:
-            inst.output_ids = []
-            for label in inst.output:
-                inst.output_ids.append(label2idx[label])
-
-        input_ids = transformer_tokenizer.convert_tokens_to_ids(['[CLS]'] + tokens + ['[SEP]'])
-        inst.word_ids = input_ids
-        inst.orig_to_tok_index = orig_to_tok_index
 
 

@@ -3,10 +3,14 @@ import torch.nn as nn
 from config.transformers_util import context_models
 
 from termcolor import colored
-class BertEmbedder(nn.Module):
+class TransformersEmbedder(nn.Module):
+    """
+    Encode the input with transformers model such as
+    BERT, Roberta, and so on.
+    """
 
     def __init__(self, config, print_info=True):
-        super(BertEmbedder, self).__init__()
+        super(TransformersEmbedder, self).__init__()
         output_hidden_states = False ## to use all hidden states or not
         print(colored(f"[Model Info] Loading pretrained language model {config.embedder_type}", "red"))
 

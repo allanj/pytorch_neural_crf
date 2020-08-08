@@ -8,17 +8,17 @@ import torch.nn as nn
 from model.module.bilstm_encoder import BiLSTMEncoder
 from model.module.linear_crf_inferencer import LinearCRF
 from model.module.linear_encoder import LinearEncoder
-from model.embedder import BertEmbedder
+from model.embedder import TransformersEmbedder
 from typing import Tuple
 from overrides import overrides
 
 
-class BertNNCRF(nn.Module):
+class TransformersCRF(nn.Module):
 
     def __init__(self, config, print_info: bool = True):
-        super(BertNNCRF, self).__init__()
+        super(TransformersCRF, self).__init__()
         self.device = config.device
-        self.embedder = BertEmbedder(config, print_info=print_info)
+        self.embedder = TransformersEmbedder(config, print_info=print_info)
         if config.hidden_dim > 0:
             self.encoder = BiLSTMEncoder(config, self.embedder.get_output_dim(), print_info=print_info)
         else:

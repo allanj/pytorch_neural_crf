@@ -4,7 +4,7 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
 We achieve the SOTA performance on both CoNLL-2003 and OntoNotes 5.0 English datasets (check our [benchmark](/docs/benchmark.md)). 
 
 ### Requirements
-* Python >= 3.6 and PyTorch >= 0.4.1
+* Python >= 3.6 and PyTorch = 1.4.0 (tested)
 * AllenNLP package (if you use ELMo)
 * Transformers package from Huggingface (Required by using Transformers)
 
@@ -16,7 +16,7 @@ git clone https://github.com/allanj/pytorch_lstmcrf.git
 conda create -n pt_lstmcrf python=3.7
 conda activate pt_lstmcrf
 # check https://pytorch.org for the suitable version of your machines
-conda install pytorch=1.3.0 torchvision cudatoolkit=10.0 -c pytorch -n pt_lstmcrf
+conda install pytorch=1.4.0 torchvision cudatoolkit=10.0 -c pytorch -n pt_lstmcrf
 pip install tqdm
 pip install termcolor
 pip install overrides
@@ -50,7 +50,7 @@ For using BERT, it would be a similar manner. We recommend you use the [BERT-As-
 Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/lstmcrf.py#L82)). You may not need concatenation for BERT.
 
 ### Fine-tune with BERT Embedding (Fine-tuning Approach)
-In this scenario, instead of using the `NNCRF` class in [`neuralcrf.py`](/model/neuralcrf.py), we will be using the `BertNNCRF` class in [`bert_neuralcrf.py`](/model/bert_neuralcrf.py).
+In this scenario, instead of using the `NNCRF` class in [`neuralcrf.py`](/model/neuralcrf.py), we will be using the `BertNNCRF` class in [`bert_neuralcrf.py`](/model/transformers_neuralcrf.py).
 1. Check if your prefered language model in `config/transformers_util.py`. If not, add to the utils. For example, if you would like to use `BERT-Large`. Add the following line to the dictionary.
     ```python
        'bert-large-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizer }

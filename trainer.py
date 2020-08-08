@@ -1,20 +1,22 @@
 import argparse
 import random
 import numpy as np
-from config import Reader, Config, ContextEmb, lr_decay, evaluate_batch_insts, get_optimizer, write_results, batching_list_instances, get_huggingface_optimizer_and_scheduler
+from config import Reader, Config, ContextEmb, lr_decay, evaluate_batch_insts, get_optimizer, write_results, batching_list_instances
 import time
-from model import NNCRF, BertNNCRF
+from model import NNCRF, TransformersCRF
 import torch
 from typing import List
 from common import Instance
 from termcolor import colored
 import os
-from config.utils import load_elmo_vec,tokenize_instance
+from config.utils import load_elmo_vec
+from config.transformers_util import tokenize_instance, get_huggingface_optimizer_and_scheduler
 from config import context_models, get_metric
 import pickle
 import tarfile
 from tqdm import tqdm
 from collections import Counter
+
 
 def set_seed(opt, seed):
     random.seed(seed)
@@ -88,7 +90,7 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
         optimizer = get_optimizer(config, model)
         scheduler = None
     else:
-        model = BertNNCRF(config)
+        model = TransformersCRF(config)
         optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(batched_data) * epoch)
 
     best_dev = [-1, 0]
@@ -213,9 +215,7 @@ def main():
         load_elmo_vec(conf.dev_file + "." + conf.static_context_emb.name + ".vec", devs)
         load_elmo_vec(conf.test_file + "." + conf.static_context_emb.name + ".vec", tests)
 
-    conf.use_iobes(trains)
-    conf.use_iobes(devs)
-    conf.use_iobes(tests)
+    conf.use_iobes(trains + devs + tests)
     conf.build_label_idx(trains + devs + tests)
 
     if conf.embedder_type == "normal":
@@ -230,23 +230,12 @@ def main():
         print("[Data Info] num words: " + str(len(conf.word2idx)))
         # print(config.word2idx)
     else:
-        # conf.build_word_idx(trains, devs, tests)
-        # conf.build_emb_table()
-        #
-        # conf.map_insts_ids(trains)
-        # conf.map_insts_ids(devs)
-        # conf.map_insts_ids(tests)
-        # print("[Data Info] num chars: " + str(conf.num_char))
-        # print(str(conf.char2idx))
-        # print("[Data Info] num words: " + str(len(conf.word2idx)))
         """
         If we use the pretrained model from transformers
         we need to use the pretrained tokenizer
         """
         print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "red"))
         tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains + devs + tests, conf.label2idx)
-
-
 
     train_model(conf, conf.num_epochs, trains, devs, tests)
 
