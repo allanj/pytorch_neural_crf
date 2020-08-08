@@ -29,8 +29,8 @@ pip install transformers
 
 In the documentation below, we present four ways for users to run the code:
 1. Run the model via Fine-tuning BERT/Roberta/etc in Transformers package.
-2. Run the model with simply word embeddings.
-3. Run the model via static BERT/Roberta/etc in Transformers package.
+2. Run the model via static BERT/Roberta/etc in Transformers package.
+3. Run the model with simply word embeddings.
 4. Run the model via static ELMo/BERT representations loaded from external vectors.
 
 Our default argument setup refers to the second one `1`.
@@ -41,7 +41,7 @@ change the embedder type as `bert-base-cased`.
     ```bash
     python trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models --embedder_type=bert-base-cased
     ```
-2. (Optional) Using other models in HuggingFace.
+2. **(Optional) Using other models in HuggingFace.**
     1. Check if your prefered language model in `config/transformers_util.py`. If not, add to the utils. For example, if you would like to use `BERT-Large`. Add the following line to the dictionary.
         ```python
            'bert-large-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizer }
@@ -60,18 +60,6 @@ change the embedder type as `bert-base-cased`.
 
 
 
-### Usage with Word Embedding (e.g., Glove)
-1. Put the Glove embedding file (`glove.6B.100d.txt`) under `data` directory (You can also use ELMo/BERT/Flair, Check below.) Note that if your embedding file does not exist, we just randomly initalize the embeddings.
-2. Simply run the following command and you can obtain results comparable to the benchmark above.
-    ```bash
-    python trainer.py
-    ```
-    If you want to use your 1st GPU device `cuda:0` and train models for your own dataset with elmo embedding:
-    ```
-    python trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models \
-                     --optimizer=sgd --learning_rate=0.01 --batch_size=10 \
-                     --max_grad_norm=-1 --hidden_dim=200 --digit2zero=True
-    ```
 
 
 
@@ -81,17 +69,9 @@ Simply go to `model/transformers_embedder.py` and uncomment the following:
 self.model.requires_grad = False
 ```
 
+### Other Usages
+Using Word embedding or external contextualized embedding (ELMo/BERT) can be found in [here](/docs/other_usage.md).
 
-### Using ELMo (and BERT) as contextualized word embeddings (Static, Feature-based Approach, with Externally Stored Vector)
-There are two ways to import the ELMo and BERT representations. We can either __preprocess the input files into vectors and load them in the program__ or __use the ELMo/BERT model to _forward_ the input tokens everytime__. The latter approach allows us to fine tune the parameters in ELMo and BERT. But the memory consumption is pretty high. For the purpose of most practical use case, I simply implemented the first method.
-1. Run the script with `python -m preprocess.get_elmo_vec YourData`. As a result, you get the vector files for your datasets.
-2. Run the main file with command: `python trainer.py --static_context_emb elmo`. You are good to go.
-
-For using BERT, it would be a similar manner. Let me know if you want further functionality. Note that, we concatenate ELMo and word embeddings (i.e., Glove) in our model (check [here](https://github.com/allanj/pytorch_lstmcrf/blob/master/model/bilstm_encoder.py#L67)). You may not need concatenation for BERT.
-You need to install [HuggingFace Transformers](https://github.com/huggingface/transformers) and [BERT-As-Service](https://github.com/hanxiao/bert-as-service) before running the following preprocessing script.
-1.  Run the script with `python -m preprocess.get_bert_vec YourData`.
-
-I suggest you also quickly read the documentation in BERT-As-Service before preprocessing.
 
 ##### Training with your own data. 
 1. Create a folder `YourData` under the data directory. 
@@ -139,8 +119,8 @@ print(prediction)
 - [x] Make the code more modularized (separate the encoder and inference layers) and readable (by adding more comments)
 - [x] Put the benchmark performance documentation to another markdown file
 - [x] Integrate BERT as a module instead of just features.
-- [ ] Integrate ELMo as a module for fine-tuning.
 - [x] Clean up the code to better organization (e.g., `import` stuff)
+- [ ] Benchmark experiments for Transformers' based models.
 
 ### Contributors
 A huge thanks to [@yuchenlin](https://github.com/yuchenlin) for his contribution in this repo.
