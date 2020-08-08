@@ -3,6 +3,9 @@
 This repository implements an LSTM-CRF model for named entity recognition. The model is same as the one by [Lample et al., (2016)](http://www.anthology.aclweb.org/N/N16/N16-1030.pdf) except we do not have the last `tanh` layer after the BiLSTM.
 We achieve the SOTA performance on both CoNLL-2003 and OntoNotes 5.0 English datasets (check our [benchmark](/docs/benchmark.md)). 
 
+**Announcement: The integration with transformers is now available. We are running benchmark experiments on different dataset.**
+**Benchmark experiments are coming soon. Stay tuned.**
+
 ### Requirements
 * Python >= 3.6 and PyTorch = 1.4.0 (tested)
 * AllenNLP package (if you use ELMo)
@@ -13,7 +16,7 @@ If you use `conda`:
 ```bash
 git clone https://github.com/allanj/pytorch_lstmcrf.git
 
-conda create -n pt_lstmcrf python=3.7
+conda create -n pt_lstmcrf python=3.6
 conda activate pt_lstmcrf
 # check https://pytorch.org for the suitable version of your machines
 conda install pytorch=1.4.0 torchvision cudatoolkit=10.0 -c pytorch -n pt_lstmcrf
