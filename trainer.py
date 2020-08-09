@@ -93,20 +93,25 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
     else:
         print(
             colored(f"[Model Info]: Working with transformers package from huggingface with {config.embedder_type}", 'red'))
-        print(colored(f"[Optimizer Information]: You should be aware that you are using the optimizer from huggingface.", 'red'))
-        print(colored(f"[Optimizer Information]: Change the optimier in transformers_util.py if you want to make some modifications.", 'red'))
+        print(colored(f"[Optimizer Info]: You should be aware that you are using the optimizer from huggingface.", 'red'))
+        print(colored(f"[Optimizer Info]: Change the optimier in transformers_util.py if you want to make some modifications.", 'red'))
         model = TransformersCRF(config)
-        optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(batched_data) * epoch)
+        optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(batched_data) * epoch,
+                                                                       weight_decay=0.0,
+                                                                       eps = 1e-8,
+                                                                       warmup_step=0)
+        print(colored(f"[Optimizer Info] Modify the optimizer info as you need.", 'red'))
+        print(optimizer)
 
     best_dev = [-1, 0]
     best_test = [-1, 0]
 
     model_folder = config.model_folder
     res_folder = "results"
-    # if os.path.exists("model_files/" + model_folder):
-    #     raise FileExistsError(
-    #         f"The folder model_files/{model_folder} exists. Please either delete it or create a new one "
-    #         f"to avoid override.")
+    if os.path.exists("model_files/" + model_folder):
+        raise FileExistsError(
+            f"The folder model_files/{model_folder} exists. Please either delete it or create a new one "
+            f"to avoid override.")
     model_path = f"model_files/{model_folder}/lstm_crf.m"
     config_path = f"model_files/{model_folder}/config.conf"
     res_path = f"{res_folder}/{model_folder}.results"
