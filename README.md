@@ -7,8 +7,7 @@ We achieve the SOTA performance on both CoNLL-2003 and OntoNotes 5.0 English dat
 **Benchmark experiments are coming soon. Stay tuned.**
 
 ### Requirements
-* Python >= 3.6 and PyTorch = 1.4.0 (tested)
-* AllenNLP package (if you use ELMo)
+* Python >= 3.6 and PyTorch >= 1.4.0 (tested)
 * Transformers package from Huggingface (Required by using Transformers)
 
 If you use `conda`:
