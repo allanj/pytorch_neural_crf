@@ -119,6 +119,7 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
     os.makedirs(f"model_files/{model_folder}", exist_ok= True) ## create model files. not raise error if exist
     os.makedirs(res_folder, exist_ok=True)
     no_incre_dev = 0
+    print(colored(f"[Train Info] Start training, you have set to stop if performace not increase for {config.max_no_incre} epochs",'red'))
     for i in tqdm(range(1, epoch + 1), desc="Epoch"):
         epoch_loss = 0
         start_time = time.time()
