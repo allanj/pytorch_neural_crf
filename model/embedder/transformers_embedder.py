@@ -16,9 +16,9 @@ class TransformersEmbedder(nn.Module):
 
         self.model = context_models[config.embedder_type]["model"].from_pretrained(config.embedder_type,
                                                                                    output_hidden_states= output_hidden_states)
-        # self.parallel = config.parallel_embedder
-        # if config.parallel_embedder:
-        #     self.model = nn.DataParallel(self.model)
+        self.parallel = config.parallel_embedder
+        if config.parallel_embedder:
+            self.model = nn.DataParallel(self.model)
         """
         use the following line if you want to freeze the model, 
         but don't forget also exclude the parameters in the optimizer
@@ -30,7 +30,7 @@ class TransformersEmbedder(nn.Module):
         ## for example, if you are using GPT, it should be self.model.config.n_embd
         ## Check out https://huggingface.co/transformers/model_doc/gpt.html
         ## But you can directly write it as 768 as well.
-        return self.model.config.hidden_size
+        return self.model.config.hidden_size if not self.parallel else self.model.module.config.hidden_size
 
     def forward(self, word_seq_tensor: torch.Tensor,
                        orig_to_token_index: torch.LongTensor, ## batch_size * max_seq_leng

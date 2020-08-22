@@ -64,7 +64,7 @@ def parse_arguments(parser):
     parser.add_argument('--embedder_type', type=str, default="bert-base-cased",
                         choices=["normal"] + list(context_models.keys()),
                         help="normal means word embedding + char, otherwise you can use 'bert-base-cased' and so on")
-    parser.add_argument('--parallel', type=int, default=0,
+    parser.add_argument('--parallel_embedder', type=int, default=0,
                         choices=[0, 1],
                         help="use parallel training for those (BERT) models in the transformers. Parallel on GPUs")
 
@@ -104,8 +104,6 @@ def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_ins
         print(colored(f"[Optimizer Info] Modify the optimizer info as you need.", 'red'))
         print(optimizer)
 
-    if config.parallel:
-        model = nn.DataParallel(model)
     model.to(config.device)
 
     best_dev = [-1, 0]
