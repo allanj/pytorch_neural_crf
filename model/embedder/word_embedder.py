@@ -15,12 +15,11 @@ class WordEmbedder(nn.Module):
         super(WordEmbedder, self).__init__()
         self.static_context_emb = config.static_context_emb
         self.use_char = config.use_char_rnn
-        self.device = config.device
         if self.use_char:
             self.char_feature = CharBiLSTM(config, print_info=print_info)
 
-        self.word_embedding = nn.Embedding.from_pretrained(torch.FloatTensor(config.word_embedding), freeze=False).to(self.device)
-        self.word_drop = nn.Dropout(config.dropout).to(self.device)
+        self.word_embedding = nn.Embedding.from_pretrained(torch.FloatTensor(config.word_embedding), freeze=False)
+        self.word_drop = nn.Dropout(config.dropout)
 
         self.output_size = config.embedding_dim
         if self.static_context_emb != ContextEmb.none:
@@ -47,7 +46,9 @@ class WordEmbedder(nn.Module):
         """
         word_emb = self.word_embedding(words)
         if self.static_context_emb != ContextEmb.none:
-            word_emb = torch.cat([word_emb, context_emb.to(self.device)], 2)
+            dev_num = word_emb.get_device()
+            curr_dev = torch.device(f"cuda:{dev_num}") if dev_num >= 0 else torch.device("cpu")
+            word_emb = torch.cat([word_emb, context_emb.to(curr_dev)], 2)
         if self.use_char:
             char_features = self.char_feature(chars, char_seq_lens)
             word_emb = torch.cat([word_emb, char_features], 2)

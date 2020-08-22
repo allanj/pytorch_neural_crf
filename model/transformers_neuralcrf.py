@@ -17,7 +17,6 @@ class TransformersCRF(nn.Module):
 
     def __init__(self, config, print_info: bool = True):
         super(TransformersCRF, self).__init__()
-        self.device = config.device
         self.embedder = TransformersEmbedder(config, print_info=print_info)
         if config.hidden_dim > 0:
             self.encoder = BiLSTMEncoder(config, self.embedder.get_output_dim(), print_info=print_info)
@@ -45,8 +44,10 @@ class TransformersCRF(nn.Module):
         lstm_scores = self.encoder(word_rep, word_seq_lens)
         batch_size = word_rep.size(0)
         sent_len = word_rep.size(1)
-        maskTemp = torch.arange(1, sent_len + 1, dtype=torch.long).view(1, sent_len).expand(batch_size, sent_len).to(self.device)
-        mask = torch.le(maskTemp, word_seq_lens.view(batch_size, 1).expand(batch_size, sent_len)).to(self.device)
+        dev_num = word_rep.get_device()
+        curr_dev = torch.device(f"cuda:{dev_num}") if dev_num >= 0 else torch.device("cpu")
+        maskTemp = torch.arange(1, sent_len + 1, dtype=torch.long, device=curr_dev).view(1, sent_len).expand(batch_size, sent_len)
+        mask = torch.le(maskTemp, word_seq_lens.view(batch_size, 1).expand(batch_size, sent_len))
         unlabed_score, labeled_score =  self.inferencer(lstm_scores, word_seq_lens, labels, mask)
         return unlabed_score - labeled_score
 

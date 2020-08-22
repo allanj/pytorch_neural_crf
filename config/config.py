@@ -61,7 +61,7 @@ class Config:
         self.use_char_rnn = args.use_char_rnn
 
         self.embedder_type = args.embedder_type
-        self.parallel_embedder = args.parallel_embedder
+        self.parallel = args.parallel
 
         # Data specification
         self.dataset = args.dataset

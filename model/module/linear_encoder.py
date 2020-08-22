@@ -13,8 +13,7 @@ class LinearEncoder(nn.Module):
 
         final_hidden_dim = input_dim
         self.label_size = config.label_size
-        self.device = config.device
-        self.hidden2tag = nn.Linear(final_hidden_dim, self.label_size).to(self.device)
+        self.hidden2tag = nn.Linear(final_hidden_dim, self.label_size)
 
     @overrides
     def forward(self, word_rep: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:

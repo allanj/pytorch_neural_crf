@@ -17,12 +17,10 @@ class CharBiLSTM(nn.Module):
         self.char2idx = config.char2idx
         self.chars = config.idx2char
         self.char_size = len(self.chars)
-        self.device = config.device
         self.hidden = config.charlstm_hidden_dim
-        self.dropout = nn.Dropout(config.dropout).to(self.device)
+        self.dropout = nn.Dropout(config.dropout)
         self.char_embeddings = nn.Embedding(self.char_size, self.char_emb_size)
-        self.char_embeddings = self.char_embeddings.to(self.device)
-        self.char_lstm = nn.LSTM(self.char_emb_size, self.hidden // 2 ,num_layers=1, batch_first=True, bidirectional=True).to(self.device)
+        self.char_lstm = nn.LSTM(self.char_emb_size, self.hidden // 2 ,num_layers=1, batch_first=True, bidirectional=True)
 
     @overrides
     def forward(self, char_seq_tensor: torch.Tensor, char_seq_len: torch.Tensor) -> torch.Tensor:

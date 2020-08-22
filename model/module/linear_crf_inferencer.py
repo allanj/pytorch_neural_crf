@@ -11,7 +11,6 @@ class LinearCRF(nn.Module):
         super(LinearCRF, self).__init__()
 
         self.label_size = config.label_size
-        self.device = config.device
         self.use_char = config.use_char_rnn
 
         self.label2idx = config.label2idx
@@ -21,7 +20,7 @@ class LinearCRF(nn.Module):
         self.pad_idx = self.label2idx[PAD]
 
         # initialize the following transition (anything never cannot -> start. end never  cannot-> anything. Same thing for the padding label)
-        init_transition = torch.randn(self.label_size, self.label_size).to(self.device)
+        init_transition = torch.randn(self.label_size, self.label_size)
         # init_transition[:, self.start_idx] = -10000.0
         # init_transition[self.end_idx, :] = -10000.0
         # init_transition[:, self.pad_idx] = -10000.0
@@ -57,7 +56,9 @@ class LinearCRF(nn.Module):
         """
         batch_size = all_scores.size(0)
         seq_len = all_scores.size(1)
-        alpha = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
+        dev_num = all_scores.get_device()
+        curr_dev = torch.device(f"cuda:{dev_num}") if dev_num >= 0 else torch.device("cpu")
+        alpha = torch.zeros(batch_size, seq_len, self.label_size, device=curr_dev)
 
         alpha[:, 0, :] = all_scores[:, 0,  self.start_idx, :] ## the first position of all labels = (the transition from start - > all labels) + current emission.
 
@@ -83,14 +84,16 @@ class LinearCRF(nn.Module):
         """
         batch_size = lstm_scores.size(0)
         seq_len = lstm_scores.size(1)
-        beta = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
+        dev_num = lstm_scores.get_device()
+        curr_dev = torch.device(f"cuda:{dev_num}") if dev_num >= 0 else torch.device("cpu")
+        beta = torch.zeros(batch_size, seq_len, self.label_size, device=curr_dev)
 
         ## reverse the view of computing the score. we look from behind
         rev_score = self.transition.transpose(0, 1).view(1, 1, self.label_size, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size) + \
                     lstm_scores.view(batch_size, seq_len, 1, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size)
 
         ## The code below, reverse the score from [0 -> length]  to [length -> 0].  (NOTE: we need to avoid reversing the padding)
-        perm_idx = torch.zeros(batch_size, seq_len).to(self.device)
+        perm_idx = torch.zeros(batch_size, seq_len, device=curr_dev)
         for batch_idx in range(batch_size):
             perm_idx[batch_idx][:word_seq_lens[batch_idx]] = torch.range(word_seq_lens[batch_idx] - 1, 0, -1)
         perm_idx = perm_idx.long()
@@ -126,9 +129,10 @@ class LinearCRF(nn.Module):
         """
         batch_size = lstm_scores.size(0)
         seq_len = lstm_scores.size(1)
-
-        alpha = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
-        beta = torch.zeros(batch_size, seq_len, self.label_size).to(self.device)
+        dev_num = lstm_scores.get_device()
+        curr_dev = torch.device(f"cuda:{dev_num}") if dev_num >= 0 else torch.device("cpu")
+        alpha = torch.zeros(batch_size, seq_len, self.label_size, device=curr_dev)
+        beta = torch.zeros(batch_size, seq_len, self.label_size, device=curr_dev)
 
         scores = self.transition.view(1, 1, self.label_size, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size) + \
                  lstm_scores.view(batch_size, seq_len, 1, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size)
@@ -136,7 +140,7 @@ class LinearCRF(nn.Module):
         rev_score = self.transition.transpose(0, 1).view(1, 1, self.label_size, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size) + \
                     lstm_scores.view(batch_size, seq_len, 1, self.label_size).expand(batch_size, seq_len, self.label_size, self.label_size)
 
-        perm_idx = torch.zeros(batch_size, seq_len).to(self.device)
+        perm_idx = torch.zeros(batch_size, seq_len, device=curr_dev)
         for batch_idx in range(batch_size):
             perm_idx[batch_idx][:word_seq_lens[batch_idx]] = torch.range(word_seq_lens[batch_idx] - 1, 0, -1)
         perm_idx = perm_idx.long()
@@ -223,12 +227,13 @@ class LinearCRF(nn.Module):
         """
         batchSize = all_scores.shape[0]
         sentLength = all_scores.shape[1]
-        # sent_len =
-        scoresRecord = torch.zeros([batchSize, sentLength, self.label_size]).to(self.device)
-        idxRecord = torch.zeros([batchSize, sentLength, self.label_size], dtype=torch.int64).to(self.device)
-        mask = torch.ones_like(word_seq_lens, dtype=torch.int64).to(self.device)
-        startIds = torch.full((batchSize, self.label_size), self.start_idx, dtype=torch.int64).to(self.device)
-        decodeIdx = torch.LongTensor(batchSize, sentLength).to(self.device)
+        dev_num = all_scores.get_device()
+        curr_dev = torch.device(f"cuda:{dev_num}") if dev_num >= 0 else torch.device("cpu")
+        scoresRecord = torch.zeros([batchSize, sentLength, self.label_size], device=curr_dev)
+        idxRecord = torch.zeros([batchSize, sentLength, self.label_size], dtype=torch.int64, device=curr_dev)
+        mask = torch.ones_like(word_seq_lens, dtype=torch.int64, device=curr_dev)
+        startIds = torch.full((batchSize, self.label_size), self.start_idx, dtype=torch.int64, device=curr_dev)
+        decodeIdx = torch.LongTensor(batchSize, sentLength).to(curr_dev)
 
         scores = all_scores
         # scoresRecord[:, 0, :] = self.getInitAlphaWithBatchSize(batchSize).view(batchSize, self.label_size)
