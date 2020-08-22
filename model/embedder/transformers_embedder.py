@@ -16,7 +16,7 @@ class TransformersEmbedder(nn.Module):
 
         self.model = context_models[config.embedder_type]["model"].from_pretrained(config.embedder_type,
                                                                                    output_hidden_states= output_hidden_states)
-        self.parallel = config.parallel_embedder
+        # self.parallel = config.parallel_embedder
         # if config.parallel_embedder:
         #     self.model = nn.DataParallel(self.model)
         """
