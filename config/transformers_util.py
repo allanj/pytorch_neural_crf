@@ -18,6 +18,7 @@ context_models = {
     'xlm-mlm-enfr-1024': {"model": XLMModel, "tokenizer": XLMTokenizer},
     'distilbert-base-cased': {"model": DistilBertModel, "tokenizer": DistilBertTokenizer},
     'roberta-base': {"model": RobertaModel, "tokenizer": RobertaTokenizer},
+    'roberta-large': {"model": RobertaModel, "tokenizer": RobertaTokenizer},
     'xlm-roberta-base': {"model": XLMRobertaModel, "tokenizer": XLMRobertaTokenizer},
 }
 
@@ -64,8 +65,13 @@ def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[In
             If you want to do something else (e.g., use last wordpiece to represent), modify them here.
             """
             orig_to_tok_index.append(len(tokens))
-            ## tokenize the word into word_piece
-            word_tokens = transformer_tokenizer.tokenize(word)
+            ## tokenize the word into word_piece / BPE
+            ## NOTE: adding a leading space is important for BART/GPT/Roberta tokenization.
+            ## Related GitHub issues:
+            ##      https://github.com/huggingface/transformers/issues/1196
+            ##      https://github.com/pytorch/fairseq/blob/master/fairseq/models/roberta/hub_interface.py#L38-L56
+            ##      https://github.com/ThilinaRajapakse/simpletransformers/issues/458
+            word_tokens = transformer_tokenizer.tokenize(" " + word)
             for sub_token in word_tokens:
                 tokens.append(sub_token)
         if inst.output:
