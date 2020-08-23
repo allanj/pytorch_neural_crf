@@ -7,6 +7,7 @@ and [benchmark results](/docs/transformers_benchmark.md) with fine-tuning BERT).
 **Announcement: [Benchmark results](/docs/transformers_benchmark.md) by fine-tuning BERT/Roberta**
 
 | Model| Dataset | Precision | Recall | F1 |
+|-------| ------- | :---------: | :------: | :--: |
 |Roberta-base (this repo)| CoNLL2003 | 91.88  | 93.01 |92.44|
 |Roberta-base (this repo)| CoNLL2003 | **91.88**  | **93.01** |**92.44**|
 |BERT-base-cased (this repo)| OntoNotes 5 |89.57  | 89.45 | 89.51 |
