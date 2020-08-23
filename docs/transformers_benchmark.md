@@ -25,7 +25,7 @@ I think one of the main reasons is they are using the document-level dataset ins
     
     | Model| Dataset | Precision | Recall | F1 |
     |-------| ------- | :---------: | :------: | :--: |
-    |BERT-base-cased (this repo)| Dev Set |  |  | |
+    |BERT-base-cased (this repo)| Test Set |89.57  | 89.45 | 89.51 |
     |BERT-large-cased (this repo)| Test Set | - | -|-|
     |Roberta-base (this repo)*| Test Set | 89.90  | 90.41 |**90.16**|
     
