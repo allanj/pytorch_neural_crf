@@ -6,6 +6,13 @@ and [benchmark results](/docs/transformers_benchmark.md) with fine-tuning BERT).
 
 **Announcement: [Benchmark results](/docs/transformers_benchmark.md) by fine-tuning BERT/Roberta**
 
+| Model| Dataset | Precision | Recall | F1 |
+|Roberta-base (this repo)| CoNLL2003 | 91.88  | 93.01 |92.44|
+|Roberta-base (this repo)| CoNLL2003 | **91.88**  | **93.01** |**92.44**|
+|BERT-base-cased (this repo)| OntoNotes 5 |89.57  | 89.45 | 89.51 |
+|Roberta-base (this repo)| OntoNotes 5 | **90.12**  | **91.25** |**90.68**|
+More [details](/docs/transformers_benchmark.md)
+
 ### Requirements
 * Python >= 3.6 and PyTorch >= 1.4.0 (tested)
 * Transformers package from Huggingface (Required by using Transformers)
@@ -104,7 +111,7 @@ print(prediction)
 ### Further Details and Extensions
 
 1. [Benchmark Performance](/docs/benchmark.md)
-2. Our common practice for NER is actually using ELMo is easier for tunning and obtaining quite good performance compared to BERT. But we did not try other language models.
+2. [Benchmark on BERT/Roberta](/docs/transformers_benchmark.md)
 
 
 
@@ -119,7 +126,7 @@ print(prediction)
 - [x] Put the benchmark performance documentation to another markdown file
 - [x] Integrate BERT as a module instead of just features.
 - [x] Clean up the code to better organization (e.g., `import` stuff)
-- [ ] Benchmark experiments for Transformers' based models.
+- [x] Benchmark experiments for Transformers' based models.
 
 ### Contributors
 A huge thanks to [@yuchenlin](https://github.com/yuchenlin) for his contribution in this repo.
