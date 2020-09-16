@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from model.module.charbilstm import CharBiLSTM
-from config import ContextEmb
+from src.model.module.charbilstm import CharBiLSTM
+from src.config import ContextEmb
 
 class WordEmbedder(nn.Module):
 

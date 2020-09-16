@@ -5,9 +5,9 @@
 import torch
 import torch.nn as nn
 
-from model.module.bilstm_encoder import BiLSTMEncoder
-from model.module.linear_crf_inferencer import LinearCRF
-from model.embedder import WordEmbedder
+from src.model.module.bilstm_encoder import BiLSTMEncoder
+from src.model.module.linear_crf_inferencer import LinearCRF
+from src.model.embedder import WordEmbedder
 from typing import Tuple
 from overrides import overrides
 

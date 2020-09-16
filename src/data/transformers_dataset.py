@@ -11,12 +11,11 @@ import torch
 from transformers import PreTrainedTokenizer
 import collections
 import numpy as np
-from src.data.data_utils import convert_iobes
+from src.data.data_utils import convert_iobes, build_label_idx
 
-Instance = collections.namedtuple('Instance', 'words ori_words labels')
-Instance.__new__.__defaults__ = (None,) * 3
+from src.data import Instance
 
-Feature = collections.namedtuple('Feature', 'input_ids attention_mask token_type_ids orig_to_tok_index label_ids')
+Feature = collections.namedtuple('Feature', 'input_ids attention_mask token_type_ids orig_to_tok_index word_seq_len label_ids')
 Feature.__new__.__defaults__ = (None,) * 6
 
 
@@ -55,22 +54,35 @@ def convert_instances_to_feature_tensors(instances: List[Instance],
                                 attention_mask=input_mask,
                                 orig_to_tok_index=orig_to_tok_index,
                                 token_type_ids=segment_ids,
+                                word_seq_len=len(orig_to_tok_index),
                                 label_ids=label_ids))
     return features
 
 
-class NERDataset(Dataset):
+class TransformersNERDataset(Dataset):
 
     def __init__(self, file: str,
-                tokenizer: PreTrainedTokenizer,
-                 number: int = -1, digit2zero:bool=True):
+                 tokenizer: PreTrainedTokenizer,
+                 is_train: bool,
+                 label2idx: Dict[str, int] = None,
+                 number: int = -1,):
         """
         Read the dataset into Instance
-        :param digit2zero: convert the digits into 0, which is a common practice for LSTM-CRF.
         """
-        self.digit2zero = digit2zero
+        ## read all the instances. sentences and labels
         insts = self.read_txt(file=file, number=number)
-        self.insts_ids = convert_instances_to_feature_tensors(insts, tokenizer)
+        self.insts = insts
+        if is_train:
+            print(f"[Data Info] Using the training set to build label index")
+            assert label2idx is None
+            ## build label to index mapping. e.g., B-PER -> 0, I-PER -> 1
+            idx2labels, label2idx = build_label_idx(insts)
+            self.idx2labels = idx2labels
+            self.label2idx = label2idx
+        else:
+            assert label2idx is not None ## for dev/test dataset we don't build label2idx
+            self.label2idx = label2idx
+        self.insts_ids = convert_instances_to_feature_tensors(insts, tokenizer, label2idx)
         self.tokenizer = tokenizer
 
     def read_txt(self, file: str, number: int = -1) -> List[Instance]:
@@ -94,8 +106,6 @@ class NERDataset(Dataset):
                 ls = line.split()
                 word, label = ls[0],ls[-1]
                 ori_words.append(word)
-                if self.digit2zero:
-                    word = re.sub('\d', '0', word) # replace digit with 0.
                 words.append(word)
                 labels.append(label)
         print("number of sentences: {}".format(len(insts)))
@@ -118,13 +128,33 @@ class NERDataset(Dataset):
             type_ids = feature.token_type_ids + [self.tokenizer.pad_token_type_id] * padding_length
             padding_word_len = max_seq_len - len(feature.orig_to_tok_index)
             orig_to_tok_index = feature.orig_to_tok_index + [0] * padding_word_len
+            label_ids = feature.label_ids + [0] * padding_word_len
+
+            assert len(input_ids) == max_wordpiece_length
+            assert len(mask) == max_wordpiece_length
+            assert len(type_ids) == max_wordpiece_length
+            assert len(orig_to_tok_index) ==  max_seq_len
 
             batch[i] = Feature(input_ids=np.asarray(input_ids),
                                attention_mask=np.asarray(mask), token_type_ids=np.asarray(type_ids),
                                orig_to_tok_index=np.asarray(orig_to_tok_index),
-                               label_ids=np.asarray(feature.label_ids))
+                               word_seq_len =feature.word_seq_len,
+                               label_ids=np.asarray(label_ids))
         results = Feature(*(default_collate(samples) for samples in zip(*batch)))
         return results
+
+
+## testing code to test the dataset
+# from transformers import *
+# tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+# dataset = TransformersNERDataset(file= "data/conll2003_sample/train.txt",tokenizer=tokenizer, is_train=True)
+# from torch.utils.data import DataLoader
+# train_dataloader = DataLoader(dataset, batch_size=10, shuffle=True, num_workers=2, collate_fn=dataset.collate_fn)
+# print(len(train_dataloader))
+# for batch in train_dataloader:
+#     # print(batch.input_ids.size())
+#     print(batch.input_ids)
+#     pass
 
 # class Reader:
 #

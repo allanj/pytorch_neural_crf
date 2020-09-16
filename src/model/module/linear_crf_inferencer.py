@@ -1,20 +1,19 @@
 import torch.nn as nn
 import torch
-from config import log_sum_exp_pytorch, START, STOP, PAD
+from src.config import log_sum_exp_pytorch, START, STOP, PAD
+from typing import Dict
 from typing import Tuple
 from overrides import overrides
 
 class LinearCRF(nn.Module):
 
 
-    def __init__(self, config, print_info: bool = True):
+    def __init__(self, label_size:int, label2idx:Dict[str, int]):
         super(LinearCRF, self).__init__()
 
-        self.label_size = config.label_size
-        self.use_char = config.use_char_rnn
+        self.label_size = label_size
 
-        self.label2idx = config.label2idx
-        self.labels = config.idx2labels
+        self.label2idx = label2idx
         self.start_idx = self.label2idx[START]
         self.end_idx = self.label2idx[STOP]
         self.pad_idx = self.label2idx[PAD]

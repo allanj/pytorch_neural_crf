@@ -4,8 +4,8 @@
 
 import numpy as np
 from tqdm import tqdm
-from typing import List, Tuple, Dict, Union
-from common import Instance
+from typing import List, Tuple, Dict, Union, Any
+# from src.common import Instance
 import torch
 from enum import Enum
 import os
@@ -66,8 +66,8 @@ class Config:
         # Data specification
         self.dataset = args.dataset
         self.train_file = "data/" + self.dataset + "/train.txt"
-        self.dev_file = "data/" + self.dataset + "/dev.txt"
-        self.test_file = "data/" + self.dataset + "/test.txt"
+        self.dev_file = "data/" + self.dataset + "/train.txt"
+        self.test_file = "data/" + self.dataset + "/train.txt"
         self.label2idx = {}
         self.idx2labels = []
         self.char2idx = {}
@@ -127,7 +127,7 @@ class Config:
                 embedding[first_col] = embedd
         return embedding, embedding_dim
 
-    def build_word_idx(self, train_insts: List[Instance], dev_insts: List[Instance], test_insts: List[Instance]) -> None:
+    def build_word_idx(self, train_insts: List[Any], dev_insts: List[Any], test_insts: List[Any]) -> None:
         """
         Build the vocab 2 idx for all instances
         :param train_insts:
@@ -187,7 +187,7 @@ class Config:
             for word in self.word2idx:
                 self.word_embedding[self.word2idx[word], :] = np.random.uniform(-scale, scale, [1, self.embedding_dim])
 
-    def build_label_idx(self, insts: List[Instance]) -> None:
+    def build_label_idx(self, insts: List[Any]) -> None:
         """
         Build the mapping from label to index and index to labels.
         :param insts: list of instances.
@@ -209,7 +209,7 @@ class Config:
         print("#labels: {}".format(self.label_size))
         print("label 2idx: {}".format(self.label2idx))
 
-    def use_iobes(self, insts: List[Instance]) -> None:
+    def use_iobes(self, insts: List[Any]) -> None:
         """
         Use IOBES tagging schema to replace the IOB tagging schema in the instance
         :param insts:
@@ -233,7 +233,7 @@ class Config:
                         if next_entity.startswith(self.O) or next_entity.startswith(self.B):
                             output[pos] = curr_entity.replace(self.I, self.E)
 
-    def map_insts_ids(self, insts: List[Instance]):
+    def map_insts_ids(self, insts: List[Any]):
         """
         Create id for word, char and label in each instance.
         :param insts:

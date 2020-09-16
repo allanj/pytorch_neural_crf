@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from config.transformers_util import context_models
+from src.config.transformers_util import context_models
 
 from termcolor import colored
 class TransformersEmbedder(nn.Module):

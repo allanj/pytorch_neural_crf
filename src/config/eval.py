@@ -1,6 +1,5 @@
 
-from typing import List, Dict, Tuple
-from common import Instance
+from typing import List, Dict, Tuple, Any
 import torch
 from collections import defaultdict, Counter
 
@@ -27,7 +26,7 @@ class Span:
         return hash((self.left, self.right, self.type))
 
 
-def evaluate_batch_insts(batch_insts: List[Instance],
+def evaluate_batch_insts(batch_insts: List[Any],
                          batch_pred_ids: torch.Tensor,
                          batch_gold_ids: torch.Tensor,
                          word_seq_lens: torch.Tensor,

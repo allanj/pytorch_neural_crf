@@ -1,15 +1,12 @@
-import numpy as np
 import torch
-from typing import List, Tuple, Dict
-from common import Instance
+from typing import List, Tuple, Dict, Any
 import pickle
 import torch.optim as optim
 
 import torch.nn as nn
-from transformers import AdamW, PreTrainedTokenizer, get_linear_schedule_with_warmup
+from transformers import AdamW
 
-
-from config import PAD, ContextEmb, Config
+from src.config import PAD, ContextEmb, Config
 from termcolor import colored
 
 def log_sum_exp_pytorch(vec: torch.Tensor) -> torch.Tensor:
@@ -23,7 +20,7 @@ def log_sum_exp_pytorch(vec: torch.Tensor) -> torch.Tensor:
     maxScoresExpanded = maxScores.view(vec.shape[0] ,1 , vec.shape[2]).expand(vec.shape[0], vec.shape[1], vec.shape[2])
     return maxScores + torch.log(torch.sum(torch.exp(vec - maxScoresExpanded), 1))
 
-def batching_list_instances(config: Config, insts: List[Instance]):
+def batching_list_instances(config: Config, insts: List[Any]):
     train_num = len(insts)
     batch_size = config.batch_size
     total_batch = train_num // batch_size + 1 if train_num % batch_size != 0 else train_num // batch_size
@@ -37,7 +34,7 @@ def batching_list_instances(config: Config, insts: List[Instance]):
 
     return batched_data
 
-def bert_batching(config, insts: List[Instance]) -> Dict[str,torch.Tensor]:
+def bert_batching(config, insts: List[Any]) -> Dict[str,torch.Tensor]:
     batch_size = len(insts)
     batch_data = insts
 
@@ -69,7 +66,7 @@ def bert_batching(config, insts: List[Instance]) -> Dict[str,torch.Tensor]:
         "labels": label_seq_tensor.to(config.device)
     }
 
-def simple_batching(config, insts: List[Instance]) -> Dict[str,torch.Tensor]:
+def simple_batching(config, insts: List[Any]) -> Dict[str,torch.Tensor]:
 
     """
     batching these instances together and return tensors. The seq_tensors for word and char contain their word id and char id.
@@ -147,7 +144,7 @@ def lr_decay(config, optimizer: optim.Optimizer, epoch: int) -> optim.Optimizer:
     return optimizer
 
 
-def load_elmo_vec(file: str, insts: List[Instance]):
+def load_elmo_vec(file: str, insts: List[Any]):
     """
     Load the elmo vectors and the vector will be saved within each instance with a member `elmo_vec`
     :param file: the vector files for the ELMo vectors

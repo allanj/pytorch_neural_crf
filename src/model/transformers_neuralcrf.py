@@ -5,10 +5,10 @@
 import torch
 import torch.nn as nn
 
-from model.module.bilstm_encoder import BiLSTMEncoder
-from model.module.linear_crf_inferencer import LinearCRF
-from model.module.linear_encoder import LinearEncoder
-from model.embedder import TransformersEmbedder
+from src.model.module.bilstm_encoder import BiLSTMEncoder
+from src.model.module.linear_crf_inferencer import LinearCRF
+from src.model.module.linear_encoder import LinearEncoder
+from src.model.embedder import TransformersEmbedder
 from typing import Tuple
 from overrides import overrides
 
@@ -22,7 +22,7 @@ class TransformersCRF(nn.Module):
             self.encoder = BiLSTMEncoder(config, self.embedder.get_output_dim(), print_info=print_info)
         else:
             self.encoder = LinearEncoder(config, self.embedder.get_output_dim(), print_info=print_info)
-        self.inferencer = LinearCRF(config, print_info=print_info)
+        self.inferencer = LinearCRF(config, config.label_size, )
 
     @overrides
     def forward(self, words: torch.Tensor,
