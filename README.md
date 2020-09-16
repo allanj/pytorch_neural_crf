@@ -8,10 +8,10 @@ and [benchmark results](/docs/transformers_benchmark.md) with fine-tuning BERT).
 
 | Model| Dataset | Precision | Recall | F1 |
 |-------| ------- | :---------: | :------: | :--: |
-|BERT-base-cased (this repo)| CONLL-2003 | 91.69 | 92.05 | 91.87 |
-|Roberta-base (this repo)| CoNLL-2003 | **91.88**  | **93.01** |**92.44**|
-|BERT-base-cased (this repo)| OntoNotes 5 |89.57  | 89.45 | 89.51 |
-|Roberta-base (this repo)| OntoNotes 5 | **90.12**  | **91.25** |**90.68**|
+|BERT-base-cased + CRF (this repo)| CONLL-2003 | 91.69 | 92.05 | 91.87 |
+|Roberta-base  + CRF (this repo)| CoNLL-2003 | **91.88**  | **93.01** |**92.44**|
+|BERT-base-cased  + CRF (this repo)| OntoNotes 5 |89.57  | 89.45 | 89.51 |
+|Roberta-base  + CRF (this repo)| OntoNotes 5 | **90.12**  | **91.25** |**90.68**|
 
 More [details](/docs/transformers_benchmark.md)
 
