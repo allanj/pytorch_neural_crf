@@ -1,23 +1,24 @@
 import torch
 import torch.nn as nn
 from src.config.transformers_util import context_models
-
 from termcolor import colored
+
 class TransformersEmbedder(nn.Module):
     """
     Encode the input with transformers model such as
     BERT, Roberta, and so on.
     """
 
-    def __init__(self, config, print_info=True):
+    def __init__(self, transformer_model_name: str,
+                 parallel_embedder: bool = False):
         super(TransformersEmbedder, self).__init__()
         output_hidden_states = False ## to use all hidden states or not
-        print(colored(f"[Model Info] Loading pretrained language model {config.embedder_type}", "red"))
+        print(colored(f"[Model Info] Loading pretrained language model {transformer_model_name}", "red"))
 
-        self.model = context_models[config.embedder_type]["model"].from_pretrained(config.embedder_type,
+        self.model = context_models[transformer_model_name]["model"].from_pretrained(transformer_model_name,
                                                                                    output_hidden_states= output_hidden_states)
-        self.parallel = config.parallel_embedder
-        if config.parallel_embedder:
+        self.parallel = parallel_embedder
+        if parallel_embedder:
             self.model = nn.DataParallel(self.model)
         """
         use the following line if you want to freeze the model, 

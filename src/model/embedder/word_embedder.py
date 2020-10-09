@@ -2,30 +2,40 @@ import torch
 import torch.nn as nn
 from src.model.module.charbilstm import CharBiLSTM
 from src.config import ContextEmb
+import numpy as np
 
 class WordEmbedder(nn.Module):
 
 
-    def __init__(self, config, print_info=False):
+    def __init__(self, word_embedding: np.ndarray,
+                 embedding_dim: int,
+                 static_context_emb: ContextEmb,
+                 context_emb_size: int,
+                 use_char_rnn: bool,
+                 char_emb_size: int,
+                 char_size:int,
+                 char_hidden_size: int,
+                 dropout:float = 0.5):
         """
         This word embedder allows to static contextualized representation.
         :param config:
         :param print_info:
         """
         super(WordEmbedder, self).__init__()
-        self.static_context_emb = config.static_context_emb
-        self.use_char = config.use_char_rnn
+        self.static_context_emb = static_context_emb
+        self.use_char = use_char_rnn
         if self.use_char:
-            self.char_feature = CharBiLSTM(config, print_info=print_info)
+            self.char_feature = CharBiLSTM(char_emb_size=char_emb_size, char_size=char_size, char_hidden_size=char_hidden_size,
+                                           drop_char=dropout)
 
-        self.word_embedding = nn.Embedding.from_pretrained(torch.FloatTensor(config.word_embedding), freeze=False)
-        self.word_drop = nn.Dropout(config.dropout)
+        self.word_embedding = nn.Embedding.from_pretrained(torch.FloatTensor(word_embedding), freeze=False)
+        self.word_drop = nn.Dropout(dropout)
 
-        self.output_size = config.embedding_dim
+        self.output_size = embedding_dim
         if self.static_context_emb != ContextEmb.none:
-            self.output_size += config.context_emb_size
+            self.output_size += context_emb_size
         if self.use_char:
-            self.output_size += config.charlstm_hidden_dim
+            self.output_size += char_hidden_size
 
     def get_output_dim(self):
         return self.output_size

@@ -8,6 +8,7 @@ from transformers import AdamW
 
 from src.config import PAD, ContextEmb, Config
 from termcolor import colored
+from src.data import Instance
 
 def log_sum_exp_pytorch(vec: torch.Tensor) -> torch.Tensor:
     """
@@ -186,12 +187,12 @@ def get_optimizer(config: Config, model: nn.Module,
 
 
 
-def write_results(filename: str, insts):
+def write_results(filename: str, insts: List[Instance]):
     f = open(filename, 'w', encoding='utf-8')
     for inst in insts:
-        for i in range(len(inst.input)):
-            words = inst.input.ori_words
-            output = inst.output
+        for i in range(len(inst.words)):
+            words = inst.ori_words
+            output = inst.labels
             prediction = inst.prediction
             assert len(output) == len(prediction)
             f.write("{}\t{}\t{}\t{}\n".format(i, words[i], output[i], prediction[i]))

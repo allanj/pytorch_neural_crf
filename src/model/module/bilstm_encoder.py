@@ -7,29 +7,23 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from overrides import overrides
 
 class BiLSTMEncoder(nn.Module):
+    """
+    BILSTM encoder.
+    output the score of all labels.
+    """
 
-    def __init__(self, config, input_dim, print_info: bool = True):
+    def __init__(self, label_size: int, input_dim:int,
+                 hidden_dim: int,
+                 drop_lstm:float=0.5,
+                 num_lstm_layers: int =1):
         super(BiLSTMEncoder, self).__init__()
 
-        self.label_size = config.label_size
-        self.use_char = config.use_char_rnn
-        self.label2idx = config.label2idx
-        self.labels = config.idx2labels
-
-        if print_info:
-            print("[Model Info] Input size to LSTM: {}".format(input_dim))
-            print("[Model Info] LSTM Hidden Size: {}".format(config.hidden_dim))
-
-        self.lstm = nn.LSTM(input_dim, config.hidden_dim // 2, num_layers=1, batch_first=True, bidirectional=True)
-
-        self.drop_lstm = nn.Dropout(config.dropout)
-
-        final_hidden_dim = config.hidden_dim
-
-        if print_info:
-            print("[Model Info] Final Hidden Size: {}".format(final_hidden_dim))
-
-        self.hidden2tag = nn.Linear(final_hidden_dim, self.label_size)
+        self.label_size = label_size
+        print("[Model Info] Input size to LSTM: {}".format(input_dim))
+        print("[Model Info] LSTM Hidden Size: {}".format(hidden_dim))
+        self.lstm = nn.LSTM(input_dim, hidden_dim // 2, num_layers=num_lstm_layers, batch_first=True, bidirectional=True)
+        self.drop_lstm = nn.Dropout(drop_lstm)
+        self.hidden2tag = nn.Linear(hidden_dim, self.label_size)
 
     @overrides
     def forward(self, word_rep: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:

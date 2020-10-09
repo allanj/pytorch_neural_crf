@@ -9,16 +9,15 @@ from overrides import overrides
 
 class CharBiLSTM(nn.Module):
 
-    def __init__(self, config, print_info: bool = True):
+    def __init__(self, char_emb_size:int,
+                 char_size:int,
+                 char_hidden_size: int,
+                 drop_char:float = 0.5):
         super(CharBiLSTM, self).__init__()
-        if print_info:
-            print("[Info] Building character-level LSTM")
-        self.char_emb_size = config.char_emb_size
-        self.char2idx = config.char2idx
-        self.chars = config.idx2char
-        self.char_size = len(self.chars)
-        self.hidden = config.charlstm_hidden_dim
-        self.dropout = nn.Dropout(config.dropout)
+        self.char_emb_size = char_emb_size
+        self.char_size = char_size
+        self.hidden = char_hidden_size
+        self.dropout = nn.Dropout(drop_char)
         self.char_embeddings = nn.Embedding(self.char_size, self.char_emb_size)
         self.char_lstm = nn.LSTM(self.char_emb_size, self.hidden // 2 ,num_layers=1, batch_first=True, bidirectional=True)
 

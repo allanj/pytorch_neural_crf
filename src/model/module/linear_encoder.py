@@ -2,18 +2,15 @@
 import torch
 import torch.nn as nn
 
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from overrides import overrides
 
 class LinearEncoder(nn.Module):
 
-    def __init__(self, config, input_dim, print_info: bool = True):
+    def __init__(self, label_size:int, input_dim:int):
         super(LinearEncoder, self).__init__()
 
-        final_hidden_dim = input_dim
-        self.label_size = config.label_size
-        self.hidden2tag = nn.Linear(final_hidden_dim, self.label_size)
+        self.hidden2tag = nn.Linear(input_dim, label_size)
 
     @overrides
     def forward(self, word_rep: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:

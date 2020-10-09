@@ -15,14 +15,16 @@ from overrides import overrides
 
 class TransformersCRF(nn.Module):
 
-    def __init__(self, config, print_info: bool = True):
+    def __init__(self, config):
         super(TransformersCRF, self).__init__()
-        self.embedder = TransformersEmbedder(config, print_info=print_info)
+        self.embedder = TransformersEmbedder(transformer_model_name=config.embedder_type,
+                                             parallel_embedder=config.parallel_embedder)
         if config.hidden_dim > 0:
-            self.encoder = BiLSTMEncoder(config, self.embedder.get_output_dim(), print_info=print_info)
+            self.encoder = BiLSTMEncoder(label_size=config.label_size, input_dim=self.embedder.get_output_dim(),
+                                         hidden_dim=config.hidden_dim, drop_lstm=config.dropout)
         else:
-            self.encoder = LinearEncoder(config, self.embedder.get_output_dim(), print_info=print_info)
-        self.inferencer = LinearCRF(config, config.label_size, )
+            self.encoder = LinearEncoder(label_size=config.label_size, input_dim=self.embedder.get_output_dim())
+        self.inferencer = LinearCRF(label_size=config.label_size, label2idx=config.label2idx)
 
     @overrides
     def forward(self, words: torch.Tensor,

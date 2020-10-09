@@ -14,11 +14,22 @@ from overrides import overrides
 
 class NNCRF(nn.Module):
 
-    def __init__(self, config, print_info: bool = True):
+    def __init__(self, config):
         super(NNCRF, self).__init__()
-        self.embedder = WordEmbedder(config, print_info=print_info)
-        self.encoder = BiLSTMEncoder(config, self.embedder.get_output_dim(), print_info=print_info)
-        self.inferencer = LinearCRF(config, print_info=print_info)
+        self.embedder = WordEmbedder(word_embedding=config.word_embedding,
+                                     embedding_dim=config.embedding_dim,
+                                     static_context_emb=config.static_context_emb,
+                                     context_emb_size=config.context_emb_size,
+                                     use_char_rnn=config.use_char_rnn,
+                                     char_emb_size=config.char_emb_size,
+                                     char_size=len(config.char2idx),
+                                     char_hidden_size=config.charlstm_hidden_dim,
+                                     dropout=config.dropout)
+        self.encoder = BiLSTMEncoder(label_size=config.label_size,
+                                     input_dim=self.embedder.get_output_dim(),
+                                     hidden_dim=config.hidden_dim,
+                                     drop_lstm=config.dropout)
+        self.inferencer = LinearCRF(label_size=config.label_size, label2idx=config.label2idx)
 
     @overrides
     def forward(self, words: torch.Tensor,

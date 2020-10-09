@@ -130,8 +130,8 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
         print("Epoch %d: %.5f, Time is %.2fs" % (i, epoch_loss, end_time - start_time), flush=True)
 
         model.eval()
-        dev_metrics = evaluate_model(config, model, dev_loader, "dev", dev_loader.dataset)
-        test_metrics = evaluate_model(config, model, test_loader, "test", test_loader.dataset)
+        dev_metrics = evaluate_model(config, model, dev_loader, "dev", dev_loader.dataset.insts)
+        test_metrics = evaluate_model(config, model, test_loader, "test", test_loader.dataset.insts)
         if dev_metrics[2] > best_dev[0]:
             print("saving the best model...")
             no_incre_dev = 0
@@ -144,7 +144,7 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
             f = open(config_path, 'wb')
             pickle.dump(config, f)
             f.close()
-            write_results(res_path, test_insts)
+            write_results(res_path, test_loader.dataset.insts)
         else:
             no_incre_dev += 1
         model.zero_grad()
@@ -167,18 +167,18 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     write_results(res_path, test_loader.dataset)
 
 
-def evaluate_model(config: Config, model: NNCRF, data_loader: DataLoader, name: str, insts: Dataset, print_each_type_metric: bool = False):
+def evaluate_model(config: Config, model: NNCRF, data_loader: DataLoader, name: str, insts: List, print_each_type_metric: bool = False):
     ## evaluation
     p_dict, total_predict_dict, total_entity_dict = Counter(), Counter(), Counter()
     batch_size = data_loader.batch_size
     with torch.no_grad():
-        for batch_id, batch in tqdm(enumerate(data_loader, 1), desc="--evaluating batch", total=len(data_loader)):
+        for batch_id, batch in tqdm(enumerate(data_loader, 0), desc="--evaluating batch", total=len(data_loader)):
             one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
             batch_max_scores, batch_max_ids = model.decode(words= batch.input_ids.to(config.device),
                     word_seq_lens = batch.word_seq_len.to(config.device),
                     orig_to_tok_index = batch.orig_to_tok_index.to(config.device),
                     input_mask = batch.attention_mask.to(config.device))
-            batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch["labels"], batch["word_seq_lens"], data_loader.idx2labels)
+            batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch.label_ids, batch.word_seq_len, config.idx2labels)
             p_dict += batch_p
             total_predict_dict += batch_predict
             total_entity_dict += batch_total
@@ -209,6 +209,9 @@ def main():
     tokenizer = context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type)
     print(colored(f"[Data Info] Reading dataset from: \n{conf.train_file}\n{conf.dev_file}\n{conf.test_file}", "blue"))
     train_dataset = TransformersNERDataset(conf.train_file, tokenizer, number=conf.train_num, is_train=True)
+    conf.label2idx = train_dataset.label2idx
+    conf.idx2labels = train_dataset.idx2labels
+
     dev_dataset = TransformersNERDataset(conf.dev_file, tokenizer, number=conf.dev_num, label2idx=train_dataset.label2idx, is_train=False)
     test_dataset = TransformersNERDataset(conf.test_file, tokenizer, number=conf.test_num, label2idx=train_dataset.label2idx, is_train=False)
     num_workers = 8
