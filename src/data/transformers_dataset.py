@@ -4,14 +4,12 @@
 
 from tqdm import tqdm
 from typing import List, Dict
-import re
 from torch.utils.data import Dataset
 from torch.utils.data._utils.collate import default_collate
-import torch
 from transformers import PreTrainedTokenizer
 import collections
 import numpy as np
-from src.data.data_utils import convert_iobes, build_label_idx
+from src.data.data_utils import convert_iobes, build_label_idx, check_all_labels_in_dict
 
 from src.data import Instance
 
@@ -65,7 +63,7 @@ class TransformersNERDataset(Dataset):
                  tokenizer: PreTrainedTokenizer,
                  is_train: bool,
                  label2idx: Dict[str, int] = None,
-                 number: int = -1,):
+                 number: int = -1):
         """
         Read the dataset into Instance
         """
@@ -82,6 +80,7 @@ class TransformersNERDataset(Dataset):
         else:
             assert label2idx is not None ## for dev/test dataset we don't build label2idx
             self.label2idx = label2idx
+            check_all_labels_in_dict(insts=insts, label2idx=self.label2idx)
         self.insts_ids = convert_instances_to_feature_tensors(insts, tokenizer, label2idx)
         self.tokenizer = tokenizer
 
@@ -129,11 +128,6 @@ class TransformersNERDataset(Dataset):
             padding_word_len = max_seq_len - len(feature.orig_to_tok_index)
             orig_to_tok_index = feature.orig_to_tok_index + [0] * padding_word_len
             label_ids = feature.label_ids + [0] * padding_word_len
-
-            assert len(input_ids) == max_wordpiece_length
-            assert len(mask) == max_wordpiece_length
-            assert len(type_ids) == max_wordpiece_length
-            assert len(orig_to_tok_index) ==  max_seq_len
 
             batch[i] = Feature(input_ids=np.asarray(input_ids),
                                attention_mask=np.asarray(mask), token_type_ids=np.asarray(type_ids),

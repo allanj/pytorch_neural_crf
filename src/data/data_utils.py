@@ -59,3 +59,9 @@ def build_label_idx(insts: List[Instance]) -> Tuple[List[str], Dict[str, int]]:
 	print("#labels: {}".format(label_size))
 	print("label 2idx: {}".format(label2idx))
 	return idx2labels, label2idx
+
+def check_all_labels_in_dict(insts: List[Instance], label2idx: Dict[str, int]):
+	for inst in insts:
+		for label in inst.labels:
+			if label not in label2idx:
+				raise ValueError(f"The label {label} does not exist in label2idx dict. The label might not appear in the training set.")
