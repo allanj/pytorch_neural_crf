@@ -3,20 +3,20 @@ import random
 import numpy as np
 from src.config import Config, evaluate_batch_insts
 import time
-from src.model import NNCRF, TransformersCRF
+from src.model import TransformersCRF
 import torch
 from typing import List
 from termcolor import colored
 import os
 from src.config.utils import write_results
-from src.config.transformers_util import tokenize_instance, get_huggingface_optimizer_and_scheduler, clip_gradients
+from src.config.transformers_util import get_huggingface_optimizer_and_scheduler
 from src.config import context_models, get_metric
 import pickle
 import tarfile
 from tqdm import tqdm
 from collections import Counter
 from src.data import TransformersNERDataset
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 
 def set_seed(opt, seed):
@@ -34,12 +34,7 @@ def parse_arguments(parser):
     parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
                         help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
-    parser.add_argument('--digit2zero', action="store_true", default=False,
-                        help="convert the number to 0, make it true is better")
     parser.add_argument('--dataset', type=str, default="conll2003_sample")
-    parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
-                        help="we will be using random embeddings if file do not exist")
-    parser.add_argument('--embedding_dim', type=int, default=100)
     parser.add_argument('--optimizer', type=str, default="adamw", help="This would be useless if you are working with transformers package")
     parser.add_argument('--learning_rate', type=float, default=2e-5, help="usually we use 0.01 for sgd but 2e-5 working with bert/roberta")
     parser.add_argument('--momentum', type=float, default=0.0)
@@ -57,9 +52,6 @@ def parse_arguments(parser):
     parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
     parser.add_argument('--hidden_dim', type=int, default=0, help="hidden size of the LSTM, usually we set to 200 for LSTM-CRF")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
-    parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
-    parser.add_argument('--static_context_emb', type=str, default="none", choices=["none", "elmo"],
-                        help="static contextual word embedding, our old ways to incorporate ELMo and BERT.")
 
     parser.add_argument('--embedder_type', type=str, default="bert-base-cased",
                         choices=["normal"] + list(context_models.keys()),
@@ -121,7 +113,8 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
                     labels = batch.label_ids.to(config.device))
             epoch_loss += loss.item()
             loss.backward()
-            clip_gradients(model, config.max_grad_norm, config.device)
+            if config.max_grad_norm > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
             optimizer.zero_grad()
             scheduler.step()
@@ -167,7 +160,7 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     write_results(res_path, test_loader.dataset)
 
 
-def evaluate_model(config: Config, model: NNCRF, data_loader: DataLoader, name: str, insts: List, print_each_type_metric: bool = False):
+def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoader, name: str, insts: List, print_each_type_metric: bool = False):
     ## evaluation
     p_dict, total_predict_dict, total_entity_dict = Counter(), Counter(), Counter()
     batch_size = data_loader.batch_size

@@ -49,37 +49,3 @@ def get_huggingface_optimizer_and_scheduler(config: Config, model: nn.Module,
     )
     return optimizer, scheduler
 
-def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[Any], label2idx: Dict[str, int]) -> None:
-    """
-    Tokenize the instances for BERT-based model
-    :param tokenizer: Pretrained_Tokenizer from the transformer packages
-    :param insts: List[List[Instance]
-    :return: None
-    """
-    for inst in insts:
-        tokens = [] ## store the wordpiece tokens
-        orig_to_tok_index = []
-        for i, word in enumerate(inst.input.ori_words):
-            """
-            Note: by default, we use the first wordpiece token to represent the word
-            If you want to do something else (e.g., use last wordpiece to represent), modify them here.
-            """
-            orig_to_tok_index.append(len(tokens))
-            ## tokenize the word into word_piece / BPE
-            ## NOTE: adding a leading space is important for BART/GPT/Roberta tokenization.
-            ## Related GitHub issues:
-            ##      https://github.com/huggingface/transformers/issues/1196
-            ##      https://github.com/pytorch/fairseq/blob/master/fairseq/models/roberta/hub_interface.py#L38-L56
-            ##      https://github.com/ThilinaRajapakse/simpletransformers/issues/458
-            word_tokens = transformer_tokenizer.tokenize(" " + word)
-            for sub_token in word_tokens:
-                tokens.append(sub_token)
-        if inst.output:
-            inst.output_ids = []
-            for label in inst.output:
-                inst.output_ids.append(label2idx[label])
-
-        input_ids = transformer_tokenizer.convert_tokens_to_ids([transformer_tokenizer.cls_token] + tokens + [transformer_tokenizer.sep_token])
-        inst.word_ids = input_ids
-        inst.orig_to_tok_index = orig_to_tok_index
-

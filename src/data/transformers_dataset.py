@@ -85,7 +85,8 @@ class TransformersNERDataset(Dataset):
         self.tokenizer = tokenizer
 
     def read_txt(self, file: str, number: int = -1) -> List[Instance]:
-        print("Reading file: " + file)
+        print(f"[Data Info] Reading file: {file}, labels will be converted to IOBES encoding")
+        print(f"[Data Info] Modify src/data/transformers_dataset.read_txt function if you have other requirements")
         insts = []
         with open(file, 'r', encoding='utf-8') as f:
             words = []
