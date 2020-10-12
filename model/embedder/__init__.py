@@ -1,2 +1,0 @@
-from model.embedder.word_embedder import WordEmbedder
-from model.embedder.transformers_embedder import TransformersEmbedder
