@@ -3,7 +3,7 @@
 #
 from typing import List
 
-from config.reader import  Reader
+from config.transformers_dataset import  Reader
 import numpy as np
 from allennlp.commands.elmo import ElmoEmbedder
 import pickle

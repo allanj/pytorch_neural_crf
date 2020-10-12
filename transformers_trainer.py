@@ -1,24 +1,22 @@
 import argparse
 import random
 import numpy as np
-from src.config import Config, ContextEmb, evaluate_batch_insts, write_results
+from src.config import Config, evaluate_batch_insts
 import time
-from src.model import NNCRF
+from src.model import TransformersCRF
 import torch
 from typing import List
 from termcolor import colored
 import os
-from src.config.utils import load_elmo_vec
+from src.config.utils import write_results
+from src.config.transformers_util import get_huggingface_optimizer_and_scheduler
 from src.config import context_models, get_metric
 import pickle
 import tarfile
 from tqdm import tqdm
 from collections import Counter
-from src.data import NERDataset
-from src.data.data_utils import build_word_idx
+from src.data import TransformersNERDataset
 from torch.utils.data import DataLoader
-from src.config.utils import get_optimizer, lr_decay
-from src.data import Instance
 
 
 def set_seed(opt, seed):
@@ -37,27 +35,30 @@ def parse_arguments(parser):
                         help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
     parser.add_argument('--dataset', type=str, default="conll2003_sample")
-    parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
-                        help="we will be using random embeddings if file do not exist")
-    parser.add_argument('--embedding_dim', type=int, default=100)
-    parser.add_argument('--optimizer', type=str, default="sgd", help="This would be useless if you are working with transformers package")
-    parser.add_argument('--learning_rate', type=float, default=0.01, help="usually we use 0.01 for sgd but 2e-5 working with bert/roberta")
+    parser.add_argument('--optimizer', type=str, default="adamw", help="This would be useless if you are working with transformers package")
+    parser.add_argument('--learning_rate', type=float, default=2e-5, help="usually we use 0.01 for sgd but 2e-5 working with bert/roberta")
+    parser.add_argument('--momentum', type=float, default=0.0)
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
-    parser.add_argument('--batch_size', type=int, default=10, help="default batch size is 10 (works well for normal neural crf), here default 30 for bert-based crf")
+    parser.add_argument('--batch_size', type=int, default=30, help="default batch size is 10 (works well for normal neural crf), here default 30 for bert-based crf")
     parser.add_argument('--num_epochs', type=int, default=100, help="Usually we set to 10.")
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
-    parser.add_argument('--max_no_incre', type=int, default=100, help="early stop when there is n epoch not increasing on dev")
+    parser.add_argument('--max_no_incre', type=int, default=30, help="early stop when there is n epoch not increasing on dev")
+    parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping, usually we don't use clipping for normal neural ncrf")
 
     ##model hyperparameter
     parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
-    parser.add_argument('--hidden_dim', type=int, default=200, help="hidden size of the LSTM, usually we set to 200 for LSTM-CRF")
+    parser.add_argument('--hidden_dim', type=int, default=0, help="hidden size of the LSTM, usually we set to 200 for LSTM-CRF")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
-    parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
-    parser.add_argument('--static_context_emb', type=str, default="none", choices=["none", "elmo"],
-                        help="static contextual word embedding, our old ways to incorporate ELMo and BERT.")
+
+    parser.add_argument('--embedder_type', type=str, default="bert-base-cased",
+                        choices=["normal"] + list(context_models.keys()),
+                        help="normal means word embedding + char, otherwise you can use 'bert-base-cased' and so on")
+    parser.add_argument('--parallel_embedder', type=int, default=0,
+                        choices=[0, 1],
+                        help="use parallel training for those (BERT) models in the transformers. Parallel on GPUs")
 
 
     args = parser.parse_args()
@@ -68,14 +69,19 @@ def parse_arguments(parser):
 
 def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader: DataLoader, test_loader: DataLoader):
     ### Data Processing Info
-    train_num = len(train_loader.dataset)
-    print("number of instances: %d" % (train_num))
+    train_num = len(train_loader)
+    print(f"[Data Info] number of training instances: {train_num}")
 
+    print(
+        colored(f"[Model Info]: Working with transformers package from huggingface with {config.embedder_type}", 'red'))
+    print(colored(f"[Optimizer Info]: You should be aware that you are using the optimizer from huggingface.", 'red'))
+    print(colored(f"[Optimizer Info]: Change the optimier in transformers_util.py if you want to make some modifications.", 'red'))
+    model = TransformersCRF(config)
+    optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(train_loader) * epoch,
+                                                                   weight_decay=0.0, eps = 1e-8, warmup_step=0)
+    print(colored(f"[Optimizer Info] Modify the optimizer info as you need.", 'red'))
+    print(optimizer)
 
-    model = NNCRF(config)
-    optimizer = get_optimizer(config, model)
-
-    dev = config.device
     model.to(config.device)
 
     best_dev = [-1, 0]
@@ -100,16 +106,18 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
         start_time = time.time()
         model.zero_grad()
         model.train()
-        if config.optimizer.lower() == "sgd":
-            optimizer = lr_decay(config, optimizer, i)
         for iter, batch in tqdm(enumerate(train_loader, 1), desc="--training batch", total=len(train_loader)):
-            loss = model(words = batch.words.to(dev), word_seq_lens = batch.word_seq_len.to(dev),
-                         context_emb= batch.context_emb.to(dev) if batch.context_emb is not None else None,
-                         chars = batch.chars.to(dev), char_seq_lens = batch.char_seq_lens.to(dev), labels = batch.labels.to(dev))
+            optimizer.zero_grad()
+            loss = model(words = batch.input_ids.to(config.device), word_seq_lens = batch.word_seq_len.to(config.device),
+                    orig_to_tok_index = batch.orig_to_tok_index.to(config.device), input_mask = batch.attention_mask.to(config.device),
+                    labels = batch.label_ids.to(config.device))
             epoch_loss += loss.item()
             loss.backward()
+            if config.max_grad_norm > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
             optimizer.step()
             optimizer.zero_grad()
+            scheduler.step()
             model.zero_grad()
         end_time = time.time()
         print("Epoch %d: %.5f, Time is %.2fs" % (i, epoch_loss, end_time - start_time), flush=True)
@@ -149,22 +157,21 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     model.load_state_dict(torch.load(model_path))
     model.eval()
     evaluate_model(config, model, test_loader, "test", test_loader.dataset.insts)
-    write_results(res_path, test_loader.dataset.insts)
+    write_results(res_path, test_loader.dataset)
 
 
-def evaluate_model(config: Config, model: NNCRF, loader: DataLoader, name: str, insts: List[Instance], print_each_type_metric: bool = False):
+def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoader, name: str, insts: List, print_each_type_metric: bool = False):
     ## evaluation
     p_dict, total_predict_dict, total_entity_dict = Counter(), Counter(), Counter()
-    batch_id = 0
-    batch_size = loader.batch_size
-    dev = config.device
+    batch_size = data_loader.batch_size
     with torch.no_grad():
-        for iter, batch in tqdm(enumerate(loader, 1), desc="--evaluating batch", total=len(loader)):
+        for batch_id, batch in tqdm(enumerate(data_loader, 0), desc="--evaluating batch", total=len(data_loader)):
             one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
-            batch_max_scores, batch_max_ids = model.decode(words = batch.words.to(dev), word_seq_lens = batch.word_seq_len.to(dev),
-                         context_emb=batch.context_emb.to(dev) if batch.context_emb is not None else None,
-                         chars = batch.chars.to(dev), char_seq_lens = batch.char_seq_lens.to(dev))
-            batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch.labels, batch.word_seq_len, config.idx2labels)
+            batch_max_scores, batch_max_ids = model.decode(words= batch.input_ids.to(config.device),
+                    word_seq_lens = batch.word_seq_len.to(config.device),
+                    orig_to_tok_index = batch.orig_to_tok_index.to(config.device),
+                    input_mask = batch.attention_mask.to(config.device))
+            batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch.label_ids, batch.word_seq_len, config.idx2labels)
             p_dict += batch_p
             total_predict_dict += batch_predict
             total_entity_dict += batch_total
@@ -191,43 +198,23 @@ def main():
 
     set_seed(opt, conf.seed)
 
+    print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "blue"))
+    tokenizer = context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type)
     print(colored(f"[Data Info] Reading dataset from: \n{conf.train_file}\n{conf.dev_file}\n{conf.test_file}", "blue"))
-    train_dataset = NERDataset(conf.train_file, number=conf.train_num, is_train=True)
+    train_dataset = TransformersNERDataset(conf.train_file, tokenizer, number=conf.train_num, is_train=True)
     conf.label2idx = train_dataset.label2idx
     conf.idx2labels = train_dataset.idx2labels
-    dev_dataset = NERDataset(conf.dev_file, number=conf.dev_num,
-                                         label2idx=train_dataset.label2idx, is_train=False)
-    test_dataset = NERDataset(conf.test_file, number=conf.test_num,
-                                          label2idx=train_dataset.label2idx, is_train=False)
-    word2idx, _, char2idx, _ = build_word_idx(train_dataset.insts, dev_dataset.insts, test_dataset.insts)
-    conf.word2idx = word2idx
-    conf.char2idx = char2idx
 
-    train_elmo_vecs, dev_elmo_vecs, test_elmo_vecs = None, None, None
-    if conf.static_context_emb != ContextEmb.none:
-        print('Loading the static ELMo vectors for all datasets.')
-        train_elmo_vecs = load_elmo_vec(conf.train_file + "." + conf.static_context_emb.name + ".vec")
-        conf.context_emb_size = train_elmo_vecs[0].shape[1]
-        dev_elmo_vecs = load_elmo_vec(conf.dev_file + "." + conf.static_context_emb.name + ".vec")
-        test_elmo_vecs = load_elmo_vec(conf.test_file + "." + conf.static_context_emb.name + ".vec")
-
-    train_dataset.convert_instances_to_feature_tensors(word2idx=word2idx, char2idx=char2idx, elmo_vecs=train_elmo_vecs)
-    dev_dataset.convert_instances_to_feature_tensors(word2idx=word2idx, char2idx=char2idx, elmo_vecs=dev_elmo_vecs)
-    test_dataset.convert_instances_to_feature_tensors(word2idx=word2idx, char2idx=char2idx, elmo_vecs=test_elmo_vecs)
-
+    dev_dataset = TransformersNERDataset(conf.dev_file, tokenizer, number=conf.dev_num, label2idx=train_dataset.label2idx, is_train=False)
+    test_dataset = TransformersNERDataset(conf.test_file, tokenizer, number=conf.test_num, label2idx=train_dataset.label2idx, is_train=False)
     num_workers = 8
     conf.label_size = len(train_dataset.label2idx)
     train_dataloader = DataLoader(train_dataset, batch_size=conf.batch_size, shuffle=True, num_workers=num_workers,
                                   collate_fn=train_dataset.collate_fn)
     dev_dataloader = DataLoader(dev_dataset, batch_size=conf.batch_size, shuffle=False, num_workers=num_workers,
-                                collate_fn=dev_dataset.collate_fn)
+                                  collate_fn=dev_dataset.collate_fn)
     test_dataloader = DataLoader(test_dataset, batch_size=conf.batch_size, shuffle=False, num_workers=num_workers,
-                                 collate_fn=test_dataset.collate_fn)
-
-
-    conf.build_emb_table(word2idx=word2idx)
-
-    print("[Data Info] num words: " + str(len(word2idx)))
+                                  collate_fn=test_dataset.collate_fn)
 
     train_model(conf, conf.num_epochs, train_dataloader, dev_dataloader, test_dataloader)
 

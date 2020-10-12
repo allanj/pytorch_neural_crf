@@ -6,7 +6,7 @@ import torch
 
 from config import simple_batching, ContextEmb
 from typing import List, Union, Tuple
-from common import Instance, Sentence
+from src.common import Instance, Sentence
 import tarfile
 
 from allennlp.commands.elmo import ElmoEmbedder

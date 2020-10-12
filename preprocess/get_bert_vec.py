@@ -3,7 +3,7 @@
 #
 from typing import List, Tuple
 
-from config.reader import  Reader
+from config.transformers_dataset import  Reader
 import numpy as np
 import pickle
 import sys
