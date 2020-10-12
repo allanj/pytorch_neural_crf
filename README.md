@@ -15,6 +15,8 @@ and [benchmark results](/docs/transformers_benchmark.md) with fine-tuning BERT).
 
 More [details](/docs/transformers_benchmark.md)
 
+**Update**: Our latest breaking change: using data loader to read all data and convert the data into tensor.
+
 ### Requirements
 * Python >= 3.6 and PyTorch >= 1.6.0 (tested)
 * Transformers package from Huggingface (Required by using Transformers)
