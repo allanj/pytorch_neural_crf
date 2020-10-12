@@ -156,7 +156,7 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     print("Final testing.")
     model.load_state_dict(torch.load(model_path))
     model.eval()
-    evaluate_model(config, model, test_loader, "test", test_loader.dataset)
+    evaluate_model(config, model, test_loader, "test", test_loader.dataset.insts)
     write_results(res_path, test_loader.dataset)
 
 
