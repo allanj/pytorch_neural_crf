@@ -7,9 +7,7 @@
     ```
     If you want to use your 1st GPU device `cuda:0` and train models for your own dataset with elmo embedding:
     ```
-    python trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models \
-                     --optimizer=sgd --learning_rate=0.01 --batch_size=10 \
-                     --max_grad_norm=-1 --hidden_dim=200 --digit2zero=True
+    python trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models 
     ```
 
 
