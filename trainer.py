@@ -58,7 +58,8 @@ def parse_arguments(parser):
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
     parser.add_argument('--static_context_emb', type=str, default="none", choices=["none", "elmo"],
                         help="static contextual word embedding, our old ways to incorporate ELMo and BERT.")
-
+    parser.add_argument('--add_iobes_constraint', type=int, choices=[0, 1], default=0,
+                        help="add IOBES constraint for transition parameters to enforce valid transitions")
 
     args = parser.parse_args()
     for k in args.__dict__:

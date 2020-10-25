@@ -2,19 +2,21 @@ import torch.nn as nn
 import torch
 from src.data.data_utils import START_TAG, STOP_TAG, PAD
 from src.config.utils import log_sum_exp_pytorch
-from typing import Dict
+from typing import Dict, List
 from typing import Tuple
 from overrides import overrides
 
 class LinearCRF(nn.Module):
 
 
-    def __init__(self, label_size:int, label2idx:Dict[str, int]):
+    def __init__(self, label_size:int, label2idx:Dict[str, int], add_iobes_constraint: bool = False,
+                 idx2labels: List[str] = None):
         super(LinearCRF, self).__init__()
 
         self.label_size = label_size
 
         self.label2idx = label2idx
+        self.idx2labels = idx2labels
         self.start_idx = self.label2idx[START_TAG]
         self.end_idx = self.label2idx[STOP_TAG]
         self.pad_idx = self.label2idx[PAD]
@@ -25,8 +27,36 @@ class LinearCRF(nn.Module):
         init_transition[self.end_idx, :] = -10000.0
         init_transition[:, self.pad_idx] = -10000.0
         init_transition[self.pad_idx, :] = -10000.0
+        if add_iobes_constraint:
+            self.add_constraint_for_iobes(init_transition)
 
         self.transition = nn.Parameter(init_transition)
+
+    def add_constraint_for_iobes(self, transition: torch.Tensor):
+        print("[Info] Adding IOBES constraints")
+        ## add constraint:
+        for prev_label in self.idx2labels:
+            if prev_label == START_TAG or prev_label == STOP_TAG or prev_label == PAD:
+                continue
+            for next_label in self.idx2labels:
+                if next_label == START_TAG or next_label == STOP_TAG or next_label == PAD:
+                    continue
+                if prev_label == "O" and (next_label.startswith("I-") or next_label.startswith("E-")):
+                    transition[self.label2idx[prev_label], self.label2idx[next_label]] = -10000.0
+                if prev_label.startswith("B-") or prev_label.startswith("I-"):
+                    if next_label.startswith("O") or next_label.startswith("B-") or next_label.startswith("S-"):
+                        transition[self.label2idx[prev_label], self.label2idx[next_label]] = -10000.0
+                    elif prev_label[2:] != next_label[2:]:
+                        transition[self.label2idx[prev_label], self.label2idx[next_label]] = -10000.0
+                if prev_label.startswith("S-") or prev_label.startswith("E-"):
+                    if next_label.startswith("I-") or next_label.startswith("E-"):
+                        transition[self.label2idx[prev_label], self.label2idx[next_label]] = -10000.0
+        ##constraint for start and end
+        for label in self.idx2labels:
+            if label.startswith("I-") or label.startswith("E-"):
+                transition[self.start_idx, self.label2idx[label]] = -10000.0
+            if label.startswith("I-") or label.startswith("B-"):
+                transition[self.label2idx[label], self.end_idx] = -10000.0
 
     @overrides
     def forward(self, lstm_scores, word_seq_lens, tags, mask):

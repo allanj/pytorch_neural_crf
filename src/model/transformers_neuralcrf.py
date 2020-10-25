@@ -12,6 +12,8 @@ from src.model.embedder import TransformersEmbedder
 from typing import Tuple
 from overrides import overrides
 
+from src.data.data_utils import START_TAG, STOP_TAG, PAD
+
 
 class TransformersCRF(nn.Module):
 
@@ -24,7 +26,10 @@ class TransformersCRF(nn.Module):
                                          hidden_dim=config.hidden_dim, drop_lstm=config.dropout)
         else:
             self.encoder = LinearEncoder(label_size=config.label_size, input_dim=self.embedder.get_output_dim())
-        self.inferencer = LinearCRF(label_size=config.label_size, label2idx=config.label2idx)
+        self.inferencer = LinearCRF(label_size=config.label_size, label2idx=config.label2idx, add_iobes_constraint=config.add_iobes_constraint,
+                                    idx2labels=config.idx2labels)
+        self.pad_idx = config.label2idx[PAD]
+
 
     @overrides
     def forward(self, words: torch.Tensor,

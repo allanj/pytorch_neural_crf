@@ -59,7 +59,7 @@ def parse_arguments(parser):
     parser.add_argument('--parallel_embedder', type=int, default=0,
                         choices=[0, 1],
                         help="use parallel training for those (BERT) models in the transformers. Parallel on GPUs")
-
+    parser.add_argument('--add_iobes_constraint', type=int, default=0, choices=[0,1], help="add IOBES constraint for transition parameters to enforce valid transitions")
 
     args = parser.parse_args()
     for k in args.__dict__:

@@ -46,6 +46,7 @@ class Config:
 
         self.embedder_type = args.embedder_type if "embedder_type" in args.__dict__ else None
         self.parallel_embedder = args.parallel_embedder if "parallel_embedder" in args.__dict__ else None
+        self.add_iobes_constraint = args.add_iobes_constraint
 
         # Data specification
         self.dataset = args.dataset

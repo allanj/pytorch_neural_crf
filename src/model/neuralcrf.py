@@ -29,7 +29,8 @@ class NNCRF(nn.Module):
                                      input_dim=self.embedder.get_output_dim(),
                                      hidden_dim=config.hidden_dim,
                                      drop_lstm=config.dropout)
-        self.inferencer = LinearCRF(label_size=config.label_size, label2idx=config.label2idx)
+        self.inferencer = LinearCRF(label_size=config.label_size, label2idx=config.label2idx, add_iobes_constraint=config.add_iobes_constraint,
+                                    idx2labels=config.idx2labels)
 
     @overrides
     def forward(self, words: torch.Tensor,
