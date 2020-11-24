@@ -109,6 +109,8 @@ Using Word embedding or external contextualized embedding (ELMo/BERT) can be fou
 - [x] Clean up the code to better organization (e.g., `import` stuff)
 - [x] Benchmark experiments for Transformers' based models.
 - [ ] Releases some pre-trained NER models. 
+- [ ] Support FP-16 training/inference
+- [ ] Semi-CRF model support 
 
 ### Contributors
 A huge thanks to [@yuchenlin](https://github.com/yuchenlin) for his contribution in this repo.
