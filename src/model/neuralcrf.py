@@ -50,7 +50,7 @@ class NNCRF(nn.Module):
         :return: the total negative log-likelihood loss
         """
         word_rep = self.embedder(words, word_seq_lens, context_emb, chars, char_seq_lens)
-        lstm_scores = self.encoder(word_rep, word_seq_lens)
+        lstm_scores = self.encoder(word_rep, word_seq_lens.cpu())
         batch_size = words.size(0)
         sent_len = words.size(1)
 

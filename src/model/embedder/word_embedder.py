@@ -60,7 +60,7 @@ class WordEmbedder(nn.Module):
             curr_dev = torch.device(f"cuda:{dev_num}") if dev_num >= 0 else torch.device("cpu")
             word_emb = torch.cat([word_emb, context_emb.to(curr_dev)], 2)
         if self.use_char:
-            char_features = self.char_feature(chars, char_seq_lens)
+            char_features = self.char_feature(chars, char_seq_lens.cpu())
             word_emb = torch.cat([word_emb, char_features], 2)
 
         word_rep = self.word_drop(word_emb)
