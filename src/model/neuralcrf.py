@@ -73,6 +73,6 @@ class NNCRF(nn.Module):
         :return:
         """
         word_rep = self.embedder(words, word_seq_lens, context_emb, chars, char_seq_lens)
-        features = self.encoder(word_rep, word_seq_lens)
+        features = self.encoder(word_rep, word_seq_lens.cpu())
         bestScores, decodeIdx = self.inferencer.decode(features, word_seq_lens)
         return bestScores, decodeIdx
