@@ -43,7 +43,7 @@ def convert_instances_to_feature_tensors(instances: List[Instance],
             for sub_token in word_tokens:
                 tokens.append(sub_token)
         labels = inst.labels
-        label_ids = [label2idx[label] for label in labels] if labels else None
+        label_ids = [label2idx[label] for label in labels] if labels else [-100] * len(words)
         input_ids = tokenizer.convert_tokens_to_ids([tokenizer.cls_token] + tokens + [tokenizer.sep_token])
         segment_ids = [0] * len(input_ids)
         input_mask = [1] * len(input_ids)
@@ -62,13 +62,14 @@ class TransformersNERDataset(Dataset):
     def __init__(self, file: str,
                  tokenizer: PreTrainedTokenizer,
                  is_train: bool,
+                 sents: List[List[str]] = None,
                  label2idx: Dict[str, int] = None,
                  number: int = -1):
         """
-        Read the dataset into Instance
+        sents: we use sentences if we want to build dataset from sentences directly instead of file
         """
         ## read all the instances. sentences and labels
-        insts = self.read_txt(file=file, number=number)
+        insts = self.read_txt(file=file, number=number) if sents is None else self.read_from_sentences(sents)
         self.insts = insts
         if is_train:
             print(f"[Data Info] Using the training set to build label index")
@@ -80,9 +81,19 @@ class TransformersNERDataset(Dataset):
         else:
             assert label2idx is not None ## for dev/test dataset we don't build label2idx
             self.label2idx = label2idx
-            check_all_labels_in_dict(insts=insts, label2idx=self.label2idx)
+            # check_all_labels_in_dict(insts=insts, label2idx=self.label2idx)
         self.insts_ids = convert_instances_to_feature_tensors(insts, tokenizer, label2idx)
         self.tokenizer = tokenizer
+
+    def read_from_sentences(self, sents: List[List[str]]):
+        """
+        sents = [['word_a', 'word_b'], ['word_aaa', 'word_bccc', 'word_ccc']]
+        """
+        insts = []
+        for sent in sents:
+            insts.append(Instance(words=sent, ori_words=sent))
+        return insts
+
 
     def read_txt(self, file: str, number: int = -1) -> List[Instance]:
         print(f"[Data Info] Reading file: {file}, labels will be converted to IOBES encoding")

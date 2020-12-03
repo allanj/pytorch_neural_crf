@@ -54,12 +54,15 @@ def parse_arguments(parser):
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
 
     parser.add_argument('--embedder_type', type=str, default="bert-base-cased",
-                        choices=["normal"] + list(context_models.keys()),
-                        help="normal means word embedding + char, otherwise you can use 'bert-base-cased' and so on")
+                        choices=list(context_models.keys()),
+                        help="you can use 'bert-base-uncased' and so on")
     parser.add_argument('--parallel_embedder', type=int, default=0,
                         choices=[0, 1],
                         help="use parallel training for those (BERT) models in the transformers. Parallel on GPUs")
     parser.add_argument('--add_iobes_constraint', type=int, default=0, choices=[0,1], help="add IOBES constraint for transition parameters to enforce valid transitions")
+
+    parser.add_argument('--mode', type=str, default="test", choices=["train", "test"], help="training model or test mode")
+    parser.add_argument('--test_file', type=str, default="data/conll2003_sample/test.txt", help="test file for test mode, only applicable in test mode")
 
     args = parser.parse_args()
     for k in args.__dict__:
@@ -146,7 +149,7 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
             break
 
     print("Archiving the best Model...")
-    with tarfile.open(f"model_files/{model_folder}/{model_folder}.tar.gz", "w:gz") as tar:
+    with tarfile.open(f"model_files/{model_folder}.tar.gz", "w:gz") as tar:
         tar.add(f"model_files/{model_folder}", arcname=os.path.basename(model_folder))
 
     print("Finished archiving the models")
@@ -157,7 +160,7 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     model.load_state_dict(torch.load(model_path))
     model.eval()
     evaluate_model(config, model, test_loader, "test", test_loader.dataset.insts)
-    write_results(res_path, test_loader.dataset)
+    write_results(res_path, test_loader.dataset.insts)
 
 
 def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoader, name: str, insts: List, print_each_type_metric: bool = False):
@@ -194,29 +197,47 @@ def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoad
 def main():
     parser = argparse.ArgumentParser(description="LSTM CRF implementation")
     opt = parse_arguments(parser)
-    conf = Config(opt)
 
-    set_seed(opt, conf.seed)
+    if opt.mode == "train":
+        conf = Config(opt)
+        set_seed(opt, conf.seed)
+        print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "blue"))
+        tokenizer = context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type)
+        print(colored(f"[Data Info] Reading dataset from: \n{conf.train_file}\n{conf.dev_file}\n{conf.test_file}", "blue"))
+        train_dataset = TransformersNERDataset(conf.train_file, tokenizer, number=conf.train_num, is_train=True)
+        conf.label2idx = train_dataset.label2idx
+        conf.idx2labels = train_dataset.idx2labels
 
-    print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "blue"))
-    tokenizer = context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type)
-    print(colored(f"[Data Info] Reading dataset from: \n{conf.train_file}\n{conf.dev_file}\n{conf.test_file}", "blue"))
-    train_dataset = TransformersNERDataset(conf.train_file, tokenizer, number=conf.train_num, is_train=True)
-    conf.label2idx = train_dataset.label2idx
-    conf.idx2labels = train_dataset.idx2labels
+        dev_dataset = TransformersNERDataset(conf.dev_file, tokenizer, number=conf.dev_num, label2idx=train_dataset.label2idx, is_train=False)
+        test_dataset = TransformersNERDataset(conf.test_file, tokenizer, number=conf.test_num, label2idx=train_dataset.label2idx, is_train=False)
+        num_workers = 8
+        conf.label_size = len(train_dataset.label2idx)
+        train_dataloader = DataLoader(train_dataset, batch_size=conf.batch_size, shuffle=True, num_workers=num_workers,
+                                      collate_fn=train_dataset.collate_fn)
+        dev_dataloader = DataLoader(dev_dataset, batch_size=conf.batch_size, shuffle=False, num_workers=num_workers,
+                                      collate_fn=dev_dataset.collate_fn)
+        test_dataloader = DataLoader(test_dataset, batch_size=conf.batch_size, shuffle=False, num_workers=num_workers,
+                                      collate_fn=test_dataset.collate_fn)
 
-    dev_dataset = TransformersNERDataset(conf.dev_file, tokenizer, number=conf.dev_num, label2idx=train_dataset.label2idx, is_train=False)
-    test_dataset = TransformersNERDataset(conf.test_file, tokenizer, number=conf.test_num, label2idx=train_dataset.label2idx, is_train=False)
-    num_workers = 8
-    conf.label_size = len(train_dataset.label2idx)
-    train_dataloader = DataLoader(train_dataset, batch_size=conf.batch_size, shuffle=True, num_workers=num_workers,
-                                  collate_fn=train_dataset.collate_fn)
-    dev_dataloader = DataLoader(dev_dataset, batch_size=conf.batch_size, shuffle=False, num_workers=num_workers,
-                                  collate_fn=dev_dataset.collate_fn)
-    test_dataloader = DataLoader(test_dataset, batch_size=conf.batch_size, shuffle=False, num_workers=num_workers,
-                                  collate_fn=test_dataset.collate_fn)
-
-    train_model(conf, conf.num_epochs, train_dataloader, dev_dataloader, test_dataloader)
+        train_model(conf, conf.num_epochs, train_dataloader, dev_dataloader, test_dataloader)
+    else:
+        folder_name = f"model_files/{opt.model_folder}"
+        device = torch.device(opt.device)
+        assert os.path.isdir(folder_name)
+        f = open(folder_name + "/config.conf", 'rb')
+        saved_config = pickle.load(f) # we use `label2idx` from old config, but test file, test number
+        f.close()
+        print(colored(f"[Data Info] Tokenizing the instances using '{saved_config.embedder_type}' tokenizer", "blue"))
+        tokenizer = context_models[saved_config.embedder_type]["tokenizer"].from_pretrained(saved_config.embedder_type)
+        test_dataset = TransformersNERDataset(opt.test_file, tokenizer, number=opt.test_num,
+                                              label2idx=saved_config.label2idx, is_train=False)
+        test_dataloader = DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=1,
+                                     collate_fn=test_dataset.collate_fn)
+        model = TransformersCRF(saved_config)
+        model.load_state_dict(torch.load(f"{folder_name}/lstm_crf.m", map_location=device))
+        model.eval()
+        evaluate_model(config=saved_config, model=model, data_loader=test_dataloader, name="test mode", insts = test_dataset.insts,
+                       print_each_type_metric=False)
 
 
 if __name__ == "__main__":
