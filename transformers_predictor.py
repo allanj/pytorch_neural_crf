@@ -73,7 +73,8 @@ if __name__ == '__main__':
         ['John', 'cannot', 'come', 'with', 'us', '.']
     ]
     model_path = "model_files/english_model"
+    device = "cpu" # cpu, cuda:0, cuda:1
     ## or model_path = "model_files/english_model.tar.gz"
-    predictor = TransformersNERPredictor(model_path)
+    predictor = TransformersNERPredictor(model_path, cuda_device=device)
     prediction = predictor.predict(sents)
     print(prediction)
