@@ -61,7 +61,7 @@ def parse_arguments(parser):
                         help="use parallel training for those (BERT) models in the transformers. Parallel on GPUs")
     parser.add_argument('--add_iobes_constraint', type=int, default=0, choices=[0,1], help="add IOBES constraint for transition parameters to enforce valid transitions")
 
-    parser.add_argument('--mode', type=str, default="test", choices=["train", "test"], help="training model or test mode")
+    parser.add_argument('--mode', type=str, default="train", choices=["train", "test"], help="training model or test mode")
     parser.add_argument('--test_file', type=str, default="data/conll2003_sample/test.txt", help="test file for test mode, only applicable in test mode")
 
     args = parser.parse_args()
