@@ -16,7 +16,8 @@ class TransformersEmbedder(nn.Module):
         print(colored(f"[Model Info] Loading pretrained language model {transformer_model_name}", "red"))
 
         self.model = context_models[transformer_model_name]["model"].from_pretrained(transformer_model_name,
-                                                                                   output_hidden_states= output_hidden_states)
+                                                                                   output_hidden_states= output_hidden_states,
+                                                                                     return_dict=False)
         self.parallel = parallel_embedder
         if parallel_embedder:
             self.model = nn.DataParallel(self.model)
