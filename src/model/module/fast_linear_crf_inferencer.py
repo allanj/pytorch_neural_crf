@@ -21,7 +21,7 @@ class FastLinearCRF(nn.Module):
         self.idx2labels = idx2labels
         self.start_idx = self.label2idx[START_TAG]
         self.end_idx = self.label2idx[STOP_TAG]
-        # self.pad_idx = self.label2idx[PAD]
+        self.pad_idx = self.label2idx[PAD]
 
         # initialize the following transition (anything never cannot -> start. end never  cannot-> anything. Same thing for the padding label)
         init_transition = torch.randn(self.label_size, self.label_size)
