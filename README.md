@@ -4,7 +4,10 @@ This repository implements an LSTM-CRF model for named entity recognition. The m
 We achieve the SOTA performance on both CoNLL-2003 and OntoNotes 5.0 English datasets (check our [benchmark](/docs/benchmark.md) with Glove and ELMo, other 
 and [benchmark results](/docs/transformers_benchmark.md) with fine-tuning BERT). 
 
-**Announcement: [Benchmark results](/docs/transformers_benchmark.md) by fine-tuning BERT/Roberta**
+**Announcements**
+* We implemented a [**Faster CRF**](/docs/fast_crf.md) module which allows **O(log N) inference and back-tracking**! 
+* [Benchmark results](/docs/transformers_benchmark.md) by fine-tuning BERT/Roberta**
+
 
 | Model| Dataset | Precision | Recall | F1 |
 |-------| ------- | :---------: | :------: | :--: |
