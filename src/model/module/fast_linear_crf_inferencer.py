@@ -395,8 +395,6 @@ class FastLinearCRF(nn.Module):
             ##max score
             idxs = torch.arange(b_start, padded_length, step_size, device=curr_dev)
             position_idxs = torch.arange(position_start, padded_length, step_size, device=curr_dev)
-            # argmax_idxs[:, idxs, d, :, :, :] = 0
-            # argmax_idxs[:, idxs, d, :, :, position_idxs] = current_argmax_idxs.transpose(0, 1)
 
             left_argmax_idxs = torch.gather(argmax_idxs[:, b_start::step_size, d + 1, :, :, :], 3, current_argmax_idxs.unsqueeze(-1).expand_as(argmax_idxs[:, b_start::step_size, d, :, :, :]))
             right_argmax_idxs = torch.gather(temp_argmax, 2, current_argmax_idxs.unsqueeze(-1).expand_as(temp_argmax))
@@ -405,9 +403,6 @@ class FastLinearCRF(nn.Module):
             argmax_idxs[:, b_start::step_size, d, :, :, :] += left_argmax_idxs
 
             argmax_idxs[:, idxs, d, :, :, position_idxs] += current_argmax_idxs.transpose(0, 1)
-
-            # argmax_idxs[:, b_start::step_size, d, :, :, :] =
-
 
             b_start = f_start
             step_size = step_size // 2
