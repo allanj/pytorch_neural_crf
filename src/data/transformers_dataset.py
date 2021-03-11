@@ -72,12 +72,16 @@ class TransformersNERDataset(Dataset):
         insts = self.read_txt(file=file, number=number) if sents is None else self.read_from_sentences(sents)
         self.insts = insts
         if is_train:
-            print(f"[Data Info] Using the training set to build label index")
-            assert label2idx is None
-            ## build label to index mapping. e.g., B-PER -> 0, I-PER -> 1
-            idx2labels, label2idx = build_label_idx(insts)
-            self.idx2labels = idx2labels
-            self.label2idx = label2idx
+            # assert label2idx is None
+            if label2idx is not None:
+                print(f"[WARNING] YOU ARE USING EXTERNAL label2idx, WHICH IS NOT BUILT FROM TRAINING SET.")
+                self.label2idx = label2idx
+            else:
+                print(f"[Data Info] Using the training set to build label index")
+                ## build label to index mapping. e.g., B-PER -> 0, I-PER -> 1
+                idx2labels, label2idx = build_label_idx(insts)
+                self.idx2labels = idx2labels
+                self.label2idx = label2idx
         else:
             assert label2idx is not None ## for dev/test dataset we don't build label2idx
             self.label2idx = label2idx

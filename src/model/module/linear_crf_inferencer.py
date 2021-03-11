@@ -95,7 +95,8 @@ class LinearCRF(nn.Module):
         for word_idx in range(1, seq_len):
             ## batch_size, self.label_size, self.label_size
             before_log_sum_exp = alpha[:, word_idx-1, :].view(batch_size, self.label_size, 1).expand(batch_size, self.label_size, self.label_size) + all_scores[:, word_idx, :, :]
-            alpha[:, word_idx, :] = log_sum_exp_pytorch(before_log_sum_exp)
+            # alpha[:, word_idx, :] = log_sum_exp_pytorch(before_log_sum_exp)
+            alpha[:, word_idx, :] = torch.logsumexp(before_log_sum_exp, dim=1)
 
         ### batch_size x label_size
         last_alpha = torch.gather(alpha, 1, word_seq_lens.view(batch_size, 1, 1).expand(batch_size, 1, self.label_size)-1).view(batch_size, self.label_size)
@@ -286,3 +287,39 @@ class LinearCRF(nn.Module):
             decodeIdx[:, distance2Last + 1] = torch.gather(lastNIdxRecord, 1, decodeIdx[:, distance2Last].view(batchSize, 1)).view(batchSize)
 
         return bestScores, decodeIdx
+
+if __name__ == '__main__':
+    import random
+    seed = 42
+    import numpy as np
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    import time
+    # test fast crf
+    labels = ['a', PAD, START_TAG, STOP_TAG]
+    label2idx = {'a': 0, PAD:1, START_TAG: 2, STOP_TAG: 3 }
+    model = LinearCRF(label_size=len(labels), label2idx=label2idx,
+                          idx2labels=labels)
+    seq_len = 80
+    batch_size = 5
+    all_lengths = torch.randint(1, seq_len, (batch_size,))
+    print(all_lengths)
+    # all_lengths = torch.LongTensor([7, 14])
+    all_scores = torch.randn(batch_size, max(all_lengths), len(labels), len(labels))
+    word_seq_lens = torch.LongTensor(all_lengths)
+    start = time.time()
+    output = model.forward_unlabeled(all_scores=all_scores, word_seq_lens=word_seq_lens)
+    end = time.time()
+    print(f"running time: {(end - start) * 1000}")
+    print(output)
+
+    ##
+    print("##testing decoding process.")
+    with torch.no_grad():
+        scores, indices = model.viterbi_decode(all_scores=all_scores, word_seq_lens=word_seq_lens)
+    print(scores.squeeze(-1))
+    for idx in range(batch_size):
+        indices[idx][:word_seq_lens[idx]] = indices[idx][:word_seq_lens[idx]].flip([0])
+    for i, seq_len in enumerate(all_lengths):
+        print(indices[i, :seq_len])
