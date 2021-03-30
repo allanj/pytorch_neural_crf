@@ -7,4 +7,5 @@ class Instance:
 	ori_words: List[str]
 	labels: List[str] = None
 	prediction: List[str]  = None
+	doc_idx: List[int] = None
 
