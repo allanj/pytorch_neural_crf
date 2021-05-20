@@ -61,6 +61,9 @@ def parse_arguments(parser):
                         help="use parallel training for those (BERT) models in the transformers. Parallel on GPUs")
     parser.add_argument('--add_iobes_constraint', type=int, default=0, choices=[0,1], help="add IOBES constraint for transition parameters to enforce valid transitions")
 
+    parser.add_argument("--print_detail_f1", type= int, default= 0, choices= [0, 1], help= "Open and close printing f1 scores for each tag after each evaluation epoch")
+    parser.add_argument("--earlystop_atr", type=str, default="micro", choices= ["micro", "macro"], help= "Choose between macro f1 score and micro f1 score for early stopping evaluation")
+
     parser.add_argument('--mode', type=str, default="train", choices=["train", "test"], help="training model or test mode")
     parser.add_argument('--test_file', type=str, default="data/conll2003_sample/test.txt", help="test file for test mode, only applicable in test mode")
 
@@ -179,17 +182,23 @@ def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoad
             total_predict_dict += batch_predict
             total_entity_dict += batch_total
             batch_id += 1
-    if print_each_type_metric:
+    f1Scores = []
+    if print_each_type_metric or config.print_detail_f1 or (config.earlystop_atr == "macro"):
         for key in total_entity_dict:
             precision_key, recall_key, fscore_key = get_metric(p_dict[key], total_entity_dict[key], total_predict_dict[key])
             print(f"[{key}] Prec.: {precision_key:.2f}, Rec.: {recall_key:.2f}, F1: {fscore_key:.2f}")
+            f1Scores.append(fscore_key)
+        if len(f1Scores) > 0:
+            print(f"[{name} set Total] Macro F1: {sum(f1Scores) / len(f1Scores):.2f}")
 
     total_p = sum(list(p_dict.values()))
     total_predict = sum(list(total_predict_dict.values()))
     total_entity = sum(list(total_entity_dict.values()))
     precision, recall, fscore = get_metric(total_p, total_entity, total_predict)
-    print(colored(f"[{name} set Total] Prec.: {precision:.2f}, Rec.: {recall:.2f}, F1: {fscore:.2f}", 'blue'), flush=True)
+    print(colored(f"[{name} set Total] Prec.: {precision:.2f}, Rec.: {recall:.2f}, Micro F1: {fscore:.2f}", 'blue'), flush=True)
 
+    if config.earlystop_atr == "macro" and len(f1Scores) > 0:
+        fscore = sum(f1Scores) / len(f1Scores)
 
     return [precision, recall, fscore]
 
