@@ -45,7 +45,7 @@ def parse_arguments(parser):
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
-    parser.add_argument('--max_no_incre', type=int, default=30, help="early stop when there is n epoch not increasing on dev")
+    parser.add_argument('--max_no_incre', type=int, default=80, help="early stop when there is n epoch not increasing on dev")
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping, usually we don't use clipping for normal neural ncrf")
 
     ##model hyperparameter
@@ -53,7 +53,7 @@ def parse_arguments(parser):
     parser.add_argument('--hidden_dim', type=int, default=0, help="hidden size of the LSTM, usually we set to 200 for LSTM-CRF")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
 
-    parser.add_argument('--embedder_type', type=str, default="bert-base-cased",
+    parser.add_argument('--embedder_type', type=str, default="roberta-base",
                         choices=list(context_models.keys()),
                         help="you can use 'bert-base-uncased' and so on")
     parser.add_argument('--parallel_embedder', type=int, default=0,
@@ -211,7 +211,7 @@ def main():
         conf = Config(opt)
         set_seed(opt, conf.seed)
         print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "blue"))
-        tokenizer = context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type)
+        tokenizer = context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type, add_prefix_space=True)
         print(colored(f"[Data Info] Reading dataset from: \n{conf.train_file}\n{conf.dev_file}\n{conf.test_file}", "blue"))
         train_dataset = TransformersNERDataset(conf.train_file, tokenizer, number=conf.train_num, is_train=True)
         conf.label2idx = train_dataset.label2idx
@@ -237,7 +237,7 @@ def main():
         saved_config = pickle.load(f) # we use `label2idx` from old config, but test file, test number
         f.close()
         print(colored(f"[Data Info] Tokenizing the instances using '{saved_config.embedder_type}' tokenizer", "blue"))
-        tokenizer = context_models[saved_config.embedder_type]["tokenizer"].from_pretrained(saved_config.embedder_type)
+        tokenizer = context_models[saved_config.embedder_type]["tokenizer"].from_pretrained(saved_config.embedder_type, add_prefix_space=True)
         test_dataset = TransformersNERDataset(opt.test_file, tokenizer, number=opt.test_num,
                                               label2idx=saved_config.label2idx, is_train=False)
         test_dataloader = DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=1,

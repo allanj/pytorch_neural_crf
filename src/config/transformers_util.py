@@ -7,9 +7,9 @@ import torch
 
 
 context_models = {
-    'bert-base-uncased' : {  "model": BertModel,  "tokenizer" : BertTokenizer },
-    'bert-base-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizer },
-    'bert-large-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizer },
+    'bert-base-uncased' : {  "model": BertModel,  "tokenizer" : BertTokenizerFast },
+    'bert-base-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizerFast },
+    'bert-large-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizerFast },
     'openai-gpt': {"model": OpenAIGPTModel, "tokenizer": OpenAIGPTTokenizer},
     'gpt2': {"model": GPT2Model, "tokenizer": GPT2Tokenizer},
     'ctrl': {"model": CTRLModel, "tokenizer": CTRLTokenizer},
@@ -17,9 +17,9 @@ context_models = {
     'xlnet-base-cased': {"model": XLNetModel, "tokenizer": XLNetTokenizer},
     'xlm-mlm-enfr-1024': {"model": XLMModel, "tokenizer": XLMTokenizer},
     'distilbert-base-cased': {"model": DistilBertModel, "tokenizer": DistilBertTokenizer},
-    'roberta-base': {"model": RobertaModel, "tokenizer": RobertaTokenizer},
-    'roberta-large': {"model": RobertaModel, "tokenizer": RobertaTokenizer},
-    'xlm-roberta-base': {"model": XLMRobertaModel, "tokenizer": XLMRobertaTokenizer},
+    'roberta-base': {"model": RobertaModel, "tokenizer": RobertaTokenizerFast},
+    'roberta-large': {"model": RobertaModel, "tokenizer": RobertaTokenizerFast},
+    'xlm-roberta-base': {"model": XLMRobertaModel, "tokenizer": XLMRobertaTokenizerFast},
 }
 
 def get_huggingface_optimizer_and_scheduler(config: Config, model: nn.Module,
