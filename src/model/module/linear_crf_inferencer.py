@@ -4,7 +4,6 @@ from src.data.data_utils import START_TAG, STOP_TAG, PAD
 from src.config.utils import log_sum_exp_pytorch
 from typing import Dict, List
 from typing import Tuple
-from overrides import overrides
 
 class LinearCRF(nn.Module):
 

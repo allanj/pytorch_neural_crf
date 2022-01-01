@@ -4,8 +4,6 @@ import torch.nn as nn
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from overrides import overrides
-
 class BiLSTMEncoder(nn.Module):
     """
     BILSTM encoder.

@@ -9,7 +9,6 @@ from src.model.module.bilstm_encoder import BiLSTMEncoder
 from src.model.module.linear_crf_inferencer import LinearCRF
 from src.model.embedder import WordEmbedder
 from typing import Tuple
-from overrides import overrides
 
 
 class NNCRF(nn.Module):

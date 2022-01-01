@@ -3,8 +3,6 @@ import torch
 import torch.nn as nn
 
 
-from overrides import overrides
-
 class LinearEncoder(nn.Module):
 
     def __init__(self, label_size:int, input_dim:int):

@@ -10,7 +10,6 @@ from src.model.module.linear_crf_inferencer import LinearCRF
 from src.model.module.linear_encoder import LinearEncoder
 from src.model.embedder import TransformersEmbedder
 from typing import Tuple
-from overrides import overrides
 
 from src.data.data_utils import START_TAG, STOP_TAG, PAD
 
