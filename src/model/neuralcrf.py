@@ -1,4 +1,4 @@
-# 
+#
 # @author: Allan
 #
 
@@ -32,7 +32,6 @@ class NNCRF(nn.Module):
         self.inferencer = LinearCRF(label_size=config.label_size, label2idx=config.label2idx, add_iobes_constraint=config.add_iobes_constraint,
                                     idx2labels=config.idx2labels)
 
-    @overrides
     def forward(self, words: torch.Tensor,
                     word_seq_lens: torch.Tensor,
                     context_emb: torch.Tensor,

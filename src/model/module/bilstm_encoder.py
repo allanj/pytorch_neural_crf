@@ -25,7 +25,6 @@ class BiLSTMEncoder(nn.Module):
         self.drop_lstm = nn.Dropout(drop_lstm)
         self.hidden2tag = nn.Linear(hidden_dim, self.label_size)
 
-    @overrides
     def forward(self, word_rep: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
         """
         Encoding the input with BiLSTM

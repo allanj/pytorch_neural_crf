@@ -12,7 +12,6 @@ class LinearEncoder(nn.Module):
 
         self.hidden2tag = nn.Linear(input_dim, label_size)
 
-    @overrides
     def forward(self, word_rep: torch.Tensor, word_seq_lens: torch.Tensor) -> torch.Tensor:
         """
         Encoding the input with BiLSTM

@@ -58,7 +58,6 @@ class LinearCRF(nn.Module):
             if label.startswith("I-") or label.startswith("B-"):
                 transition[self.label2idx[label], self.end_idx] = -10000.0
 
-    @overrides
     def forward(self, lstm_scores, word_seq_lens, tags, mask):
         """
         Calculate the negative log-likelihood

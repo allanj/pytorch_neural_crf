@@ -1,4 +1,4 @@
-# 
+#
 # @author: Allan
 #
 import torch
@@ -21,7 +21,6 @@ class CharBiLSTM(nn.Module):
         self.char_embeddings = nn.Embedding(self.char_size, self.char_emb_size)
         self.char_lstm = nn.LSTM(self.char_emb_size, self.hidden // 2 ,num_layers=1, batch_first=True, bidirectional=True)
 
-    @overrides
     def forward(self, char_seq_tensor: torch.Tensor, char_seq_len: torch.Tensor) -> torch.Tensor:
         """
         Get the last hidden states of the LSTM

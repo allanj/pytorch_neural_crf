@@ -1,4 +1,8 @@
-from transformers import *
+from transformers import BertModel, BertTokenizerFast, OpenAIGPTModel, OpenAIGPTTokenizer
+from transformers import GPT2Model, GPT2Tokenizer, CTRLModel, CTRLTokenizer
+from transformers import TransfoXLModel, TransfoXLTokenizer, XLNetModel, XLNetTokenizer, DistilBertModel, DistilBertTokenizer
+from transformers import RobertaModel, RobertaTokenizerFast, XLMRobertaModel, XLMRobertaTokenizerFast
+from transformers import AdamW, get_linear_schedule_with_warmup
 from typing import List, Dict, Any
 from src.config import Config
 import torch.nn as nn
@@ -15,7 +19,6 @@ context_models = {
     'ctrl': {"model": CTRLModel, "tokenizer": CTRLTokenizer},
     'transfo-xl-wt103': {"model": TransfoXLModel, "tokenizer": TransfoXLTokenizer},
     'xlnet-base-cased': {"model": XLNetModel, "tokenizer": XLNetTokenizer},
-    'xlm-mlm-enfr-1024': {"model": XLMModel, "tokenizer": XLMTokenizer},
     'distilbert-base-cased': {"model": DistilBertModel, "tokenizer": DistilBertTokenizer},
     'roberta-base': {"model": RobertaModel, "tokenizer": RobertaTokenizerFast},
     'roberta-large': {"model": RobertaModel, "tokenizer": RobertaTokenizerFast},

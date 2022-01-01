@@ -1,4 +1,4 @@
-# 
+#
 # @author: Allan
 #
 
@@ -31,7 +31,6 @@ class TransformersCRF(nn.Module):
         self.pad_idx = config.label2idx[PAD]
 
 
-    @overrides
     def forward(self, words: torch.Tensor,
                     word_seq_lens: torch.Tensor,
                     orig_to_tok_index: torch.Tensor,
