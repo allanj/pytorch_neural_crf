@@ -27,7 +27,7 @@ def convert_instances_to_feature_tensors(instances: List[Instance],
     ##      https://github.com/huggingface/transformers/issues/1196
     ##      https://github.com/pytorch/fairseq/blob/master/fairseq/models/roberta/hub_interface.py#L38-L56
     ##      https://github.com/ThilinaRajapakse/simpletransformers/issues/458
-    assert tokenizer.add_prefix_space ## has to be true, in order to tokenize pre-tokenized input
+    # assert tokenizer.add_prefix_space ## has to be true, in order to tokenize pre-tokenized input
     print("[Data Info] We are not limiting the max length in tokenizer. You should be aware of that")
     for idx, inst in enumerate(instances):
         words = inst.ori_words
