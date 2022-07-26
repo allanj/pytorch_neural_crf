@@ -45,7 +45,6 @@ class Config:
         self.use_char_rnn = args.use_char_rnn if "use_char_rnn" in args.__dict__ else None
 
         self.embedder_type = args.embedder_type if "embedder_type" in args.__dict__ else None
-        self.parallel_embedder = args.parallel_embedder if "parallel_embedder" in args.__dict__ else None
         self.add_iobes_constraint = args.add_iobes_constraint
 
         # Data specification
