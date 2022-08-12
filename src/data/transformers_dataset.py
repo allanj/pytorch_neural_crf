@@ -12,6 +12,9 @@ import numpy as np
 from src.data.data_utils import convert_iobes, build_label_idx, check_all_labels_in_dict
 
 from src.data import Instance
+import logging
+
+logger = logging.getLogger(__name__)
 
 Feature = collections.namedtuple('Feature', 'input_ids attention_mask token_type_ids orig_to_tok_index word_seq_len label_ids')
 Feature.__new__.__defaults__ = (None,) * 6
@@ -28,7 +31,7 @@ def convert_instances_to_feature_tensors(instances: List[Instance],
     ##      https://github.com/pytorch/fairseq/blob/master/fairseq/models/roberta/hub_interface.py#L38-L56
     ##      https://github.com/ThilinaRajapakse/simpletransformers/issues/458
     # assert tokenizer.add_prefix_space ## has to be true, in order to tokenize pre-tokenized input
-    print("[Data Info] We are not limiting the max length in tokenizer. You should be aware of that")
+    logger.info("[Data Info] We are not limiting the max length in tokenizer. You should be aware of that")
     for idx, inst in enumerate(instances):
         words = inst.ori_words
         orig_to_tok_index = []
@@ -77,10 +80,10 @@ class TransformersNERDataset(Dataset):
         if is_train:
             # assert label2idx is None
             if label2idx is not None:
-                print(f"[WARNING] YOU ARE USING EXTERNAL label2idx, WHICH IS NOT BUILT FROM TRAINING SET.")
+                logger.warning(f"YOU ARE USING EXTERNAL label2idx, WHICH IS NOT BUILT FROM TRAINING SET.")
                 self.label2idx = label2idx
             else:
-                print(f"[Data Info] Using the training set to build label index")
+                logger.info(f"[Data Info] Using the training set to build label index")
                 ## build label to index mapping. e.g., B-PER -> 0, I-PER -> 1
                 idx2labels, label2idx = build_label_idx(insts)
                 self.idx2labels = idx2labels
@@ -103,8 +106,8 @@ class TransformersNERDataset(Dataset):
 
 
     def read_txt(self, file: str, number: int = -1) -> List[Instance]:
-        print(f"[Data Info] Reading file: {file}, labels will be converted to IOBES encoding")
-        print(f"[Data Info] Modify src/data/transformers_dataset.read_txt function if you have other requirements")
+        logger.info(f"[Data Info] Reading file: {file}, labels will be converted to IOBES encoding")
+        logger.info(f"[Data Info] Modify src/data/transformers_dataset.read_txt function if you have other requirements")
         insts = []
         with open(file, 'r', encoding='utf-8') as f:
             words = []
@@ -126,7 +129,7 @@ class TransformersNERDataset(Dataset):
                 ori_words.append(word)
                 words.append(word)
                 labels.append(label)
-        print("number of sentences: {}".format(len(insts)))
+        logger.info(f"number of sentences: {len(insts)}")
         return insts
 
     def __len__(self):

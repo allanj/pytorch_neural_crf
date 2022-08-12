@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
-from src.config.transformers_util import context_models
-from termcolor import colored
+from transformers import AutoModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TransformersEmbedder(nn.Module):
     """
@@ -9,15 +11,14 @@ class TransformersEmbedder(nn.Module):
     BERT, Roberta, and so on.
     """
 
-    def __init__(self, transformer_model_name: str,
-                 parallel_embedder: bool = False):
+    def __init__(self, transformer_model_name: str):
         super(TransformersEmbedder, self).__init__()
         output_hidden_states = False ## to use all hidden states or not
-        print(colored(f"[Model Info] Loading pretrained language model {transformer_model_name}", "red"))
+        logger.info(f"[Model Info] Loading pretrained language model {transformer_model_name}")
 
-        self.model = context_models[transformer_model_name]["model"].from_pretrained(transformer_model_name,
-                                                                                   output_hidden_states= output_hidden_states,
-                                                                                     return_dict=True)
+        self.model = AutoModel.from_pretrained(transformer_model_name,
+                                               output_hidden_states= output_hidden_states,
+                                               return_dict=True)
         """
         use the following line if you want to freeze the model, 
         but don't forget also exclude the parameters in the optimizer

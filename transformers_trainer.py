@@ -1,40 +1,37 @@
 import argparse
-import random
-import numpy as np
 from src.config import Config, evaluate_batch_insts
 import time
 from src.model import TransformersCRF
 import torch
 from typing import List
-from termcolor import colored
 import os
 from src.config.utils import write_results
 from src.config.transformers_util import get_huggingface_optimizer_and_scheduler
-from src.config import context_models, get_metric
+from src.config import get_metric
 import pickle
 import tarfile
 from tqdm import tqdm
 from collections import Counter
 from src.data import TransformersNERDataset
 from torch.utils.data import DataLoader
+from transformers import set_seed, AutoTokenizer
+import logging
 
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    level=logging.INFO,
+)
 
-def set_seed(opt, seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if opt.device.startswith("cuda"):
-        print("using GPU...", torch.cuda.current_device())
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def parse_arguments(parser):
     ###Training Hyperparameters
     parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
                         help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
-    parser.add_argument('--dataset', type=str, default="conll2003_sample")
+    parser.add_argument('--dataset', type=str, default="conll2003")
     parser.add_argument('--optimizer', type=str, default="adamw", help="This would be useless if you are working with transformers package")
     parser.add_argument('--learning_rate', type=float, default=2e-5, help="usually we use 0.01 for sgd but 2e-5 working with bert/roberta")
     parser.add_argument('--momentum', type=float, default=0.0)
@@ -53,9 +50,7 @@ def parse_arguments(parser):
     parser.add_argument('--hidden_dim', type=int, default=0, help="hidden size of the LSTM, usually we set to 200 for LSTM-CRF")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
 
-    parser.add_argument('--embedder_type', type=str, default="roberta-base",
-                        choices=list(context_models.keys()),
-                        help="you can use 'bert-base-uncased' and so on")
+    parser.add_argument('--embedder_type', type=str, default="roberta-base", help="you can use 'bert-base-uncased' and so on")
     parser.add_argument('--add_iobes_constraint', type=int, default=0, choices=[0,1], help="add IOBES constraint for transition parameters to enforce valid transitions")
 
     parser.add_argument("--print_detail_f1", type= int, default= 0, choices= [0, 1], help= "Open and close printing f1 scores for each tag after each evaluation epoch")
@@ -66,24 +61,24 @@ def parse_arguments(parser):
 
     args = parser.parse_args()
     for k in args.__dict__:
-        print(k + ": " + str(args.__dict__[k]))
+        logger.info(k + ": " + str(args.__dict__[k]))
     return args
 
 
 def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader: DataLoader, test_loader: DataLoader):
     ### Data Processing Info
     train_num = len(train_loader)
-    print(f"[Data Info] number of training instances: {train_num}")
+    logger.info(f"[Data Info] number of training instances: {train_num}")
 
-    print(
-        colored(f"[Model Info]: Working with transformers package from huggingface with {config.embedder_type}", 'red'))
-    print(colored(f"[Optimizer Info]: You should be aware that you are using the optimizer from huggingface.", 'red'))
-    print(colored(f"[Optimizer Info]: Change the optimier in transformers_util.py if you want to make some modifications.", 'red'))
+    logger.info(f"[Model Info]: Working with transformers package from huggingface with {config.embedder_type}")
+    logger.info(f"[Optimizer Info]: You should be aware that you are using the optimizer from huggingface.")
+    logger.info(f"[Optimizer Info]: Change the optimier in transformers_util.py if you want to make some modifications.")
     model = TransformersCRF(config)
-    optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(train_loader) * epoch,
+    optimizer, scheduler = get_huggingface_optimizer_and_scheduler(model=model, learning_rate=config.learning_rate,
+                                                                   num_training_steps=len(train_loader) * epoch,
                                                                    weight_decay=0.0, eps = 1e-8, warmup_step=0)
-    print(colored(f"[Optimizer Info] Modify the optimizer info as you need.", 'red'))
-    print(optimizer)
+    logger.info(f"[Optimizer Info] Modify the optimizer info as you need.")
+    logger.info(optimizer)
 
     model.to(config.device)
 
@@ -99,11 +94,11 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     model_path = f"model_files/{model_folder}/lstm_crf.m"
     config_path = f"model_files/{model_folder}/config.conf"
     res_path = f"{res_folder}/{model_folder}.results"
-    print("[Info] The model will be saved to: %s.tar.gz" % (model_folder))
+    logger.info("[Info] The model will be saved to: %s.tar.gz" % (model_folder))
     os.makedirs(f"model_files/{model_folder}", exist_ok= True) ## create model files. not raise error if exist
     os.makedirs(res_folder, exist_ok=True)
     no_incre_dev = 0
-    print(colored(f"[Train Info] Start training, you have set to stop if performace not increase for {config.max_no_incre} epochs",'red'))
+    logger.info(f"[Train Info] Start training, you have set to stop if performace not increase for {config.max_no_incre} epochs")
     for i in tqdm(range(1, epoch + 1), desc="Epoch"):
         epoch_loss = 0
         start_time = time.time()
@@ -123,13 +118,13 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
             scheduler.step()
             model.zero_grad()
         end_time = time.time()
-        print("Epoch %d: %.5f, Time is %.2fs" % (i, epoch_loss, end_time - start_time), flush=True)
+        logger.info(f"Epoch {i}: {epoch_loss:.5f}, Time is {(end_time - start_time):.2f}s")
 
         model.eval()
         dev_metrics = evaluate_model(config, model, dev_loader, "dev", dev_loader.dataset.insts)
         test_metrics = evaluate_model(config, model, test_loader, "test", test_loader.dataset.insts)
         if dev_metrics[2] > best_dev[0]:
-            print("saving the best model...")
+            logger.info(f"saving the best model with best dev f1 score {dev_metrics[2]}")
             no_incre_dev = 0
             best_dev[0] = dev_metrics[2]
             best_dev[1] = i
@@ -145,18 +140,18 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
             no_incre_dev += 1
         model.zero_grad()
         if no_incre_dev >= config.max_no_incre:
-            print("early stop because there are %d epochs not increasing f1 on dev"%no_incre_dev)
+            logger.info("early stop because there are %d epochs not increasing f1 on dev"%no_incre_dev)
             break
 
-    print("Archiving the best Model...")
+    logger.info("Archiving the best Model...")
     with tarfile.open(f"model_files/{model_folder}.tar.gz", "w:gz") as tar:
         tar.add(f"model_files/{model_folder}", arcname=os.path.basename(model_folder))
 
-    print("Finished archiving the models")
+    logger.info("Finished archiving the models")
 
-    print("The best dev: %.2f" % (best_dev[0]))
-    print("The corresponding test: %.2f" % (best_test[0]))
-    print("Final testing.")
+    logger.info("The best dev: %.2f" % (best_dev[0]))
+    logger.info("The corresponding test: %.2f" % (best_test[0]))
+    logger.info("Final testing.")
     model.load_state_dict(torch.load(model_path))
     model.eval()
     evaluate_model(config, model, test_loader, "test", test_loader.dataset.insts)
@@ -170,10 +165,10 @@ def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoad
     with torch.no_grad():
         for batch_id, batch in tqdm(enumerate(data_loader, 0), desc="--evaluating batch", total=len(data_loader)):
             one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
-            batch_max_scores, batch_max_ids = model.decode(subword_input_ids= batch.input_ids.to(config.device),
+            batch_max_scores, batch_max_ids = model(subword_input_ids= batch.input_ids.to(config.device),
                     word_seq_lens = batch.word_seq_len.to(config.device),
                     orig_to_tok_index = batch.orig_to_tok_index.to(config.device),
-                    attention_mask = batch.attention_mask.to(config.device))
+                    attention_mask = batch.attention_mask.to(config.device), is_train=False)
             batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch.label_ids, batch.word_seq_len, config.idx2labels)
             p_dict += batch_p
             total_predict_dict += batch_predict
@@ -183,16 +178,16 @@ def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoad
     if print_each_type_metric or config.print_detail_f1 or (config.earlystop_atr == "macro"):
         for key in total_entity_dict:
             precision_key, recall_key, fscore_key = get_metric(p_dict[key], total_entity_dict[key], total_predict_dict[key])
-            print(f"[{key}] Prec.: {precision_key:.2f}, Rec.: {recall_key:.2f}, F1: {fscore_key:.2f}")
+            logger.info(f"[{key}] Prec.: {precision_key:.2f}, Rec.: {recall_key:.2f}, F1: {fscore_key:.2f}")
             f1Scores.append(fscore_key)
         if len(f1Scores) > 0:
-            print(f"[{name} set Total] Macro F1: {sum(f1Scores) / len(f1Scores):.2f}")
+            logger.info(f"[{name} set Total] Macro F1: {sum(f1Scores) / len(f1Scores):.2f}")
 
     total_p = sum(list(p_dict.values()))
     total_predict = sum(list(total_predict_dict.values()))
     total_entity = sum(list(total_entity_dict.values()))
     precision, recall, fscore = get_metric(total_p, total_entity, total_predict)
-    print(colored(f"[{name} set Total] Prec.: {precision:.2f}, Rec.: {recall:.2f}, Micro F1: {fscore:.2f}", 'blue'), flush=True)
+    logger.info(f"[{name} set Total] Prec.: {precision:.2f}, Rec.: {recall:.2f}, Micro F1: {fscore:.2f}")
 
     if config.earlystop_atr == "macro" and len(f1Scores) > 0:
         fscore = sum(f1Scores) / len(f1Scores)
@@ -201,15 +196,14 @@ def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoad
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LSTM CRF implementation")
+    parser = argparse.ArgumentParser(description="Transformer CRF implementation")
     opt = parse_arguments(parser)
-
+    set_seed(opt.seed)
     if opt.mode == "train":
         conf = Config(opt)
-        set_seed(opt, conf.seed)
-        print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "blue"))
-        tokenizer = context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type, add_prefix_space=True)
-        print(colored(f"[Data Info] Reading dataset from: \n{conf.train_file}\n{conf.dev_file}\n{conf.test_file}", "blue"))
+        logger.info(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer")
+        tokenizer = AutoTokenizer.from_pretrained(conf.embedder_type, add_prefix_space=True, use_fast=True)
+        logger.info(f"[Data Info] Reading dataset from: \n{conf.train_file}\n{conf.dev_file}\n{conf.test_file}")
         train_dataset = TransformersNERDataset(conf.train_file, tokenizer, number=conf.train_num, is_train=True)
         conf.label2idx = train_dataset.label2idx
         conf.idx2labels = train_dataset.idx2labels
@@ -233,8 +227,8 @@ def main():
         f = open(folder_name + "/config.conf", 'rb')
         saved_config = pickle.load(f) # we use `label2idx` from old config, but test file, test number
         f.close()
-        print(colored(f"[Data Info] Tokenizing the instances using '{saved_config.embedder_type}' tokenizer", "blue"))
-        tokenizer = context_models[saved_config.embedder_type]["tokenizer"].from_pretrained(saved_config.embedder_type, add_prefix_space=True)
+        logger.info(f"[Data Info] Tokenizing the instances using '{saved_config.embedder_type}' tokenizer")
+        tokenizer = AutoTokenizer.from_pretrained(saved_config.embedder_type, add_prefix_space=True, use_fast=True)
         test_dataset = TransformersNERDataset(opt.test_file, tokenizer, number=opt.test_num,
                                               label2idx=saved_config.label2idx, is_train=False)
         test_dataloader = DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=1,

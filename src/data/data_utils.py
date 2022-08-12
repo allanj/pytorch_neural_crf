@@ -12,6 +12,10 @@ STOP_TAG = "<STOP>"
 PAD = "<PAD>"
 UNK = "<UNK>"
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def convert_iobes(labels: List[str]) -> List[str]:
 	"""
 	Use IOBES tagging schema to replace the IOB tagging schema in the instance
@@ -57,8 +61,8 @@ def build_label_idx(insts: List[Instance]) -> Tuple[List[str], Dict[str, int]]:
 	label2idx[STOP_TAG] = len(label2idx)
 	idx2labels.append(STOP_TAG)
 	label_size = len(label2idx)
-	print("#labels: {}".format(label_size))
-	print("label 2idx: {}".format(label2idx))
+	logger.info("#labels: {}".format(label_size))
+	logger.info("label 2idx: {}".format(label2idx))
 	return idx2labels, label2idx
 
 def check_all_labels_in_dict(insts: List[Instance], label2idx: Dict[str, int]):
