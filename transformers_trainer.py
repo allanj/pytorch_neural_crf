@@ -44,6 +44,7 @@ def parse_arguments(parser):
     parser.add_argument('--test_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--max_no_incre', type=int, default=80, help="early stop when there is n epoch not increasing on dev")
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping, usually we don't use clipping for normal neural ncrf")
+    parser.add_argument('--fp16', type=int, choices=[0, 1], default=0, help="use 16-bit floating point precision instead of 32-bit")
 
     ##model hyperparameter
     parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
@@ -81,6 +82,9 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     logger.info(optimizer)
 
     model.to(config.device)
+    scaler = None
+    if config.fp16:
+        scaler = torch.cuda.amp.GradScaler(enabled=bool(config.fp16))
 
     best_dev = [-1, 0]
     best_test = [-1, 0]
@@ -106,14 +110,23 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
         model.train()
         for iter, batch in tqdm(enumerate(train_loader, 1), desc="--training batch", total=len(train_loader)):
             optimizer.zero_grad()
-            loss = model(subword_input_ids = batch.input_ids.to(config.device), word_seq_lens = batch.word_seq_len.to(config.device),
-                    orig_to_tok_index = batch.orig_to_tok_index.to(config.device), attention_mask = batch.attention_mask.to(config.device),
-                    labels = batch.label_ids.to(config.device))
+            with torch.cuda.amp.autocast(enabled=bool(config.fp16)):
+                loss = model(subword_input_ids = batch.input_ids.to(config.device), word_seq_lens = batch.word_seq_len.to(config.device),
+                        orig_to_tok_index = batch.orig_to_tok_index.to(config.device), attention_mask = batch.attention_mask.to(config.device),
+                        labels = batch.label_ids.to(config.device))
             epoch_loss += loss.item()
-            loss.backward()
+            if config.fp16:
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+            else:
+                loss.backward()
             if config.max_grad_norm > 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
-            optimizer.step()
+            if config.fp16:
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                optimizer.step()
             optimizer.zero_grad()
             scheduler.step()
             model.zero_grad()
@@ -162,7 +175,7 @@ def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoad
     ## evaluation
     p_dict, total_predict_dict, total_entity_dict = Counter(), Counter(), Counter()
     batch_size = data_loader.batch_size
-    with torch.no_grad():
+    with torch.no_grad(), torch.cuda.amp.autocast(enabled=bool(config.fp16)):
         for batch_id, batch in tqdm(enumerate(data_loader, 0), desc="--evaluating batch", total=len(data_loader)):
             one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
             batch_max_scores, batch_max_ids = model(subword_input_ids= batch.input_ids.to(config.device),
