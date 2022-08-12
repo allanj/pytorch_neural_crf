@@ -70,6 +70,7 @@ class Config:
         self.device = torch.device(args.device)
         self.max_no_incre = args.max_no_incre
         self.max_grad_norm = args.max_grad_norm if "max_grad_norm" in args.__dict__ else None
+        self.fp16 = args.fp16
 
         self.print_detail_f1 = args.print_detail_f1 if "print_detail_f1" in args.__dict__ else None
         self.earlystop_atr = args.earlystop_atr if "earlystop_atr" in args.__dict__ else None

@@ -35,12 +35,11 @@ git clone https://github.com/allanj/pytorch_lstmcrf.git
 conda create -n pt_lstmcrf python=3.6
 conda activate pt_lstmcrf
 # kindly check https://pytorch.org for the suitable version of your machines
-conda install pytorch torchvision cudatoolkit=10.0 -c pytorch -n pt_lstmcrf
+conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 pip install tqdm
-pip install termcolor
-pip install overrides
 pip install allennlp ## required when we need to get the ELMo vectors
 pip install transformers
+pip install accelerate ## Used for distributed training
 ```
 
 In the documentation below, we present two ways for users to run the code:
@@ -56,22 +55,17 @@ change the embedder type as `bert-base-cased`.
     python transformers_trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models --embedder_type=bert-base-cased
     ```
 2. **(Optional) Using other models in HuggingFace.**
-    1. Check if your prefered language model in `config/transformers_util.py`. If not, add to the utils. For example, if you would like to use `BERT-Large`. Add the following line to the dictionary.
-        ```python
-           'bert-large-cased' : {  "model": BertModel,  "tokenizer" : BertTokenizer }
-        ```
-        This name `bert-large-cased` has to follow the naming rule by HuggingFace.
-    2. Run the main file with modified argument `embedder_type`:
+    1.  Run the main file with modified argument `embedder_type`:
         ```bash
            python trainer.py --embedder_type=bert-large-cased
         ```
         The default value for `embedder_type` is `normal`, which refers to the classic LSTM-CRF and we can use `static_context_emb` in previous section.
         Changing the name to something like `bert-base-cased` or `roberta-base`, we directly load the model from huggingface.
         **Note**: if you use other models, remember to replace the [tokenization mechanism]() in `config/utils.py`.
-    3.  Finally, if you would like to know more about the details, read more details below:
+    2. Finally, if you would like to know more about the details, read more details below:
         * [Tokenization](/docs/bert_tokenization.md): For BERT, we use the first wordpice to represent a complete word. Check `config/transformers_util.py`
         * [Embedder](/docs/bert_embedder.md): We show how to embed the input tokens to make word representation. Check `model/embedder/transformers_embedder.py`
-    4. Using BERT/Roberta as contextualized word embeddings (Static, Feature-based Approach)
+    3. Using BERT/Roberta as contextualized word embeddings (Static, Feature-based Approach)
        Simply go to `model/transformers_embedder.py` and uncomment the following:
        ```python
         self.model.requires_grad = False
