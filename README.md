@@ -18,10 +18,6 @@ and [benchmark results](/docs/transformers_benchmark.md) with fine-tuning BERT).
 
 More [details](/docs/transformers_benchmark.md)
 
-**Update**: Our latest breaking change: using data loader to read all data and convert the data into tensor. 
-We latest [release](https://github.com/allanj/pytorch_lstmcrf/tree/v0.2.0) also use HuggingFace's transformers but we didn't adopt to use the PyTorch 
-`Dataset` and `DataLoader` yet. This version uses both and we are also testing the correctness of the code before publishing a new release.
-
 ### Requirements
 * Python >= 3.6 and PyTorch >= 1.6.0 (tested)
 * Transformers package from Huggingface (Required by using Transformers)
@@ -29,7 +25,7 @@ We latest [release](https://github.com/allanj/pytorch_lstmcrf/tree/v0.2.0) also 
 If you use `conda`:
 
 ```bash
-git clone https://github.com/allanj/pytorch_lstmcrf.git
+git clone https://github.com/allanj/pytorch_neural_crf.git
 # python > 3.6
 conda create -n pt_lstmcrf python=3.6
 conda activate pt_lstmcrf
