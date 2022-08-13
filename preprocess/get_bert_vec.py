@@ -40,7 +40,7 @@ def read_parse_write(tokenizer: BertTokenizer, bert_client: BertClient, infile: 
     :return:
     """
     reader = Reader()
-    insts = reader.read_txt(infile, -1)
+    insts = reader.read_file(infile, -1)
     f = open(outfile, 'wb')
     all_vecs = []
     all_sents = []

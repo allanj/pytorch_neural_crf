@@ -75,7 +75,7 @@ class TransformersNERDataset(Dataset):
         sents: we use sentences if we want to build dataset from sentences directly instead of file
         """
         ## read all the instances. sentences and labels
-        insts = self.read_txt(file=file, number=number) if sents is None else self.read_from_sentences(sents)
+        insts = self.read_file(file=file, number=number) if sents is None else self.read_from_sentences(sents)
         self.insts = insts
         if is_train:
             # assert label2idx is None
@@ -105,7 +105,7 @@ class TransformersNERDataset(Dataset):
         return insts
 
 
-    def read_txt(self, file: str, number: int = -1) -> List[Instance]:
+    def read_file(self, file: str, number: int = -1) -> List[Instance]:
         logger.info(f"[Data Info] Reading file: {file}, labels will be converted to IOBES encoding")
         logger.info(f"[Data Info] Modify src/data/transformers_dataset.read_txt function if you have other requirements")
         insts = []

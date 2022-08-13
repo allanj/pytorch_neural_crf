@@ -111,9 +111,11 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
         for iter, batch in tqdm(enumerate(train_loader, 1), desc="--training batch", total=len(train_loader)):
             optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=bool(config.fp16)):
-                loss = model(subword_input_ids = batch.input_ids.to(config.device), word_seq_lens = batch.word_seq_len.to(config.device),
-                        orig_to_tok_index = batch.orig_to_tok_index.to(config.device), attention_mask = batch.attention_mask.to(config.device),
-                        labels = batch.label_ids.to(config.device))
+                loss = model(subword_input_ids = batch.input_ids.to(config.device),
+                             word_seq_lens = batch.word_seq_len.to(config.device),
+                             orig_to_tok_index = batch.orig_to_tok_index.to(config.device),
+                             attention_mask = batch.attention_mask.to(config.device),
+                             labels = batch.label_ids.to(config.device))
             epoch_loss += loss.item()
             if config.fp16:
                 scaler.scale(loss).backward()
@@ -179,9 +181,10 @@ def evaluate_model(config: Config, model: TransformersCRF, data_loader: DataLoad
         for batch_id, batch in tqdm(enumerate(data_loader, 0), desc="--evaluating batch", total=len(data_loader)):
             one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
             batch_max_scores, batch_max_ids = model(subword_input_ids= batch.input_ids.to(config.device),
-                    word_seq_lens = batch.word_seq_len.to(config.device),
-                    orig_to_tok_index = batch.orig_to_tok_index.to(config.device),
-                    attention_mask = batch.attention_mask.to(config.device), is_train=False)
+                                                    word_seq_lens = batch.word_seq_len.to(config.device),
+                                                    orig_to_tok_index = batch.orig_to_tok_index.to(config.device),
+                                                    attention_mask = batch.attention_mask.to(config.device),
+                                                    is_train=False)
             batch_p , batch_predict, batch_total = evaluate_batch_insts(one_batch_insts, batch_max_ids, batch.label_ids, batch.word_seq_len, config.idx2labels)
             p_dict += batch_p
             total_predict_dict += batch_predict

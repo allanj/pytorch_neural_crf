@@ -30,7 +30,6 @@ If you use `conda`:
 
 ```bash
 git clone https://github.com/allanj/pytorch_lstmcrf.git
-
 # python > 3.6
 conda create -n pt_lstmcrf python=3.6
 conda activate pt_lstmcrf
@@ -49,26 +48,31 @@ In the documentation below, we present two ways for users to run the code:
 Our default argument setup refers to the first one `1`.
 
 ### Usage with Fine-Tuning BERT/Roberta (,etc) models in HuggingFace
-1. Simply replace the `embedder_type` argument with the model in HuggingFace. For example, if we are using `bert-base-cased`, we just need to 
-change the embedder type as `bert-base-cased`. 
+1. Simply replace the `embedder_type` argument with the model in HuggingFace. For example, if we are using `roberta-large`, we just need to 
+change the embedder type as `roberta-large`. 
     ```bash
-    python transformers_trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models --embedder_type=bert-base-cased
+    python transformers_trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models --embedder_type=roberta-base
     ```
 2. **(Optional) Using other models in HuggingFace.**
     1.  Run the main file with modified argument `embedder_type`:
         ```bash
-           python trainer.py --embedder_type=bert-large-cased
+        python trainer.py --embedder_type=bert-large-cased
         ```
-        The default value for `embedder_type` is `normal`, which refers to the classic LSTM-CRF and we can use `static_context_emb` in previous section.
-        Changing the name to something like `bert-base-cased` or `roberta-base`, we directly load the model from huggingface.
+        The default value for `embedder_type` is `roberta-base`.
+        Changing the name to something like `bert-base-cased` or `roberta-large`, we directly load the model from huggingface.
         **Note**: if you use other models, remember to replace the [tokenization mechanism]() in `config/utils.py`.
+       
+        Our default tokenizer is assumed to be `fast_tokenizer`. If your tokenizer does not support `fast` mode, try set `use_fast=False`:
+        ```python3
+        tokenizer = AutoTokenizer.from_pretrained(conf.embedder_type, add_prefix_space=True, use_fast=False)
+        ```
     2. Finally, if you would like to know more about the details, read more details below:
         * [Tokenization](/docs/bert_tokenization.md): For BERT, we use the first wordpice to represent a complete word. Check `config/transformers_util.py`
         * [Embedder](/docs/bert_embedder.md): We show how to embed the input tokens to make word representation. Check `model/embedder/transformers_embedder.py`
     3. Using BERT/Roberta as contextualized word embeddings (Static, Feature-based Approach)
        Simply go to `model/transformers_embedder.py` and uncomment the following:
        ```python
-        self.model.requires_grad = False
+       self.model.requires_grad = False
        ```
 
 

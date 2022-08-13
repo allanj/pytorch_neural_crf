@@ -48,7 +48,7 @@ def read_parse_write(elmo: ElmoEmbedder, infile: str, outfile: str, mode: str = 
     :return:
     """
     reader = Reader()
-    insts = reader.read_txt(infile, -1)
+    insts = reader.read_file(infile, -1)
     f = open(outfile, 'wb')
     all_vecs = []
     all_sents = []
