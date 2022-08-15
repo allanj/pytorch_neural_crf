@@ -35,6 +35,7 @@ pip install tqdm
 pip install allennlp ## required when we need to get the ELMo vectors
 pip install transformers
 pip install accelerate ## Used for distributed training
+pip install seqeval ## Used for distributed training evaluation
 ```
 
 In the documentation below, we present two ways for users to run the code:

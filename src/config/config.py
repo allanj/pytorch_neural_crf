@@ -64,7 +64,7 @@ class Config:
         self.batch_size = args.batch_size
         self.clip = 5
         self.lr_decay = args.lr_decay
-        self.device = torch.device(args.device)
+        self.device = torch.device(args.device) if "device" in args.__dict__ else None
         self.max_no_incre = args.max_no_incre
         self.max_grad_norm = args.max_grad_norm if "max_grad_norm" in args.__dict__ else None
         self.fp16 = args.fp16

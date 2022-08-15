@@ -13,16 +13,15 @@ from src.data.data_utils import convert_iobes, build_label_idx, check_all_labels
 
 from src.data import Instance
 import logging
+from transformers.tokenization_utils_base import BatchEncoding
 
 logger = logging.getLogger(__name__)
 
-Feature = collections.namedtuple('Feature', 'input_ids attention_mask token_type_ids orig_to_tok_index word_seq_len label_ids')
-Feature.__new__.__defaults__ = (None,) * 6
 
 
 def convert_instances_to_feature_tensors(instances: List[Instance],
                                          tokenizer: PreTrainedTokenizerFast,
-                                         label2idx: Dict[str, int]) -> List[Feature]:
+                                         label2idx: Dict[str, int]) -> List[Dict]:
     features = []
     ## tokenize the word into word_piece / BPE
     ## NOTE: adding a leading space is important for BART/GPT/Roberta tokenization.
@@ -54,12 +53,12 @@ def convert_instances_to_feature_tensors(instances: List[Instance],
         label_ids = [label2idx[label] for label in labels] if labels else [-100] * len(words)
         segment_ids = [0] * len(res["input_ids"])
 
-        features.append(Feature(input_ids=res["input_ids"],
-                                attention_mask=res["attention_mask"],
-                                orig_to_tok_index=orig_to_tok_index,
-                                token_type_ids=segment_ids,
-                                word_seq_len=len(orig_to_tok_index),
-                                label_ids=label_ids))
+        features.append({"input_ids": res["input_ids"],
+                         "attention_mask": res["attention_mask"],
+                         "orig_to_tok_index": orig_to_tok_index,
+                         "token_type_ids": segment_ids,
+                         "word_seq_len": len(orig_to_tok_index),
+                         "label_ids": label_ids})
     return features
 
 
@@ -138,25 +137,27 @@ class TransformersNERDataset(Dataset):
     def __getitem__(self, index):
         return self.insts_ids[index]
 
-    def collate_fn(self, batch:List[Feature]):
-        word_seq_len = [len(feature.orig_to_tok_index) for feature in batch]
+    def collate_fn(self, batch:List[Dict]):
+        word_seq_len = [len(feature["orig_to_tok_index"]) for feature in batch]
         max_seq_len = max(word_seq_len)
-        max_wordpiece_length = max([len(feature.input_ids) for feature in batch])
+        max_wordpiece_length = max([len(feature["input_ids"]) for feature in batch])
         for i, feature in enumerate(batch):
-            padding_length = max_wordpiece_length - len(feature.input_ids)
-            input_ids = feature.input_ids + [self.tokenizer.pad_token_id] * padding_length
-            mask = feature.attention_mask + [0] * padding_length
-            type_ids = feature.token_type_ids + [self.tokenizer.pad_token_type_id] * padding_length
-            padding_word_len = max_seq_len - len(feature.orig_to_tok_index)
-            orig_to_tok_index = feature.orig_to_tok_index + [0] * padding_word_len
-            label_ids = feature.label_ids + [0] * padding_word_len
+            padding_length = max_wordpiece_length - len(feature["input_ids"])
+            input_ids = feature["input_ids"] + [self.tokenizer.pad_token_id] * padding_length
+            mask = feature["attention_mask"] + [0] * padding_length
+            type_ids = feature["token_type_ids"] + [self.tokenizer.pad_token_type_id] * padding_length
+            padding_word_len = max_seq_len - len(feature["orig_to_tok_index"])
+            orig_to_tok_index = feature["orig_to_tok_index"] + [0] * padding_word_len
+            label_ids = feature["label_ids"] + [0] * padding_word_len
 
-            batch[i] = Feature(input_ids=np.asarray(input_ids),
-                               attention_mask=np.asarray(mask), token_type_ids=np.asarray(type_ids),
-                               orig_to_tok_index=np.asarray(orig_to_tok_index),
-                               word_seq_len =feature.word_seq_len,
-                               label_ids=np.asarray(label_ids))
-        results = Feature(*(default_collate(samples) for samples in zip(*batch)))
+            batch[i] = {"input_ids": input_ids,
+                        "attention_mask": mask,
+                        "token_type_ids": type_ids,
+                        "orig_to_tok_index": orig_to_tok_index,
+                        "word_seq_len": feature["word_seq_len"],
+                        "label_ids": label_ids}
+        encoded_inputs = {key: [example[key] for example in batch] for key in batch[0].keys()}
+        results = BatchEncoding(encoded_inputs, tensor_type='pt')
         return results
 
 
@@ -164,7 +165,7 @@ class TransformersNERDataset(Dataset):
 if __name__ == '__main__':
     from transformers import RobertaTokenizerFast
     tokenizer = RobertaTokenizerFast.from_pretrained('roberta-base', add_prefix_space=True)
-    dataset = TransformersNERDataset(file= "data/conll2003_sample/train.txt",tokenizer=tokenizer, is_train=True)
+    dataset = TransformersNERDataset(file="data/conll2003_sample/train.txt",tokenizer=tokenizer, is_train=True)
     from torch.utils.data import DataLoader
     train_dataloader = DataLoader(dataset, batch_size=10, shuffle=True, num_workers=2, collate_fn=dataset.collate_fn)
     print(len(train_dataloader))

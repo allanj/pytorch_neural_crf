@@ -34,7 +34,7 @@ class TransformersCRF(nn.Module):
                     word_seq_lens: torch.Tensor,
                     orig_to_tok_index: torch.Tensor,
                     attention_mask: torch.Tensor,
-                    labels: torch.Tensor,
+                    labels: torch.Tensor = None,
                     is_train: bool = True) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Calculate the negative loglikelihood.

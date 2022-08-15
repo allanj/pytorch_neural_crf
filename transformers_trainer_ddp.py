@@ -26,7 +26,9 @@ from datasets.metric import Metric
 Same as transformers_trainer.py but with distributed training.
 """
 
-accelerator = Accelerator()
+from accelerate import DistributedDataParallelKwargs
+ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+accelerator = Accelerator(kwargs_handlers=[ddp_kwargs])
 
 tqdm = partial(tqdm, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}', disable=not accelerator.is_local_main_process)
 
@@ -41,16 +43,14 @@ logger.setLevel(logging.INFO)
 
 def parse_arguments(parser):
     ###Training Hyperparameters
-    parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
-                        help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
-    parser.add_argument('--dataset', type=str, default="conll2003")
+    parser.add_argument('--dataset', type=str, default="conll2003_sample")
     parser.add_argument('--optimizer', type=str, default="adamw", help="This would be useless if you are working with transformers package")
     parser.add_argument('--learning_rate', type=float, default=2e-5, help="usually we use 0.01 for sgd but 2e-5 working with bert/roberta")
     parser.add_argument('--momentum', type=float, default=0.0)
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
-    parser.add_argument('--batch_size', type=int, default=30, help="default batch size is 10 (works well for normal neural crf), here default 30 for bert-based crf")
+    parser.add_argument('--batch_size', type=int, default=30, help="batch_size per device. For distributed training, this is the batch_size per gpu")
     parser.add_argument('--num_epochs', type=int, default=100, help="Usually we set to 100.")
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
@@ -185,18 +185,15 @@ def evaluate_model(config: Config,
                    metric:Metric,
                    print_each_type_metric: bool = False):
     ## evaluation
-    p_dict, total_predict_dict, total_entity_dict = Counter(), Counter(), Counter()
-    batch_size = data_loader.batch_size
-    insts = data_loader.dataset.insts
     all_predictions = []
     all_golds = []
+    insts = data_loader.dataset.insts
     with torch.no_grad(), torch.cuda.amp.autocast(enabled=bool(config.fp16)):
         for batch_id, batch in tqdm(enumerate(data_loader, 0), desc="--evaluating batch", total=len(data_loader)):
-            one_batch_insts = insts[batch_id * batch_size:(batch_id + 1) * batch_size]
-            batch_max_scores, batch_max_ids = model(subword_input_ids= batch.input_ids.to(config.device),
-                                                    word_seq_lens = batch.word_seq_len.to(config.device),
-                                                    orig_to_tok_index = batch.orig_to_tok_index.to(config.device),
-                                                    attention_mask = batch.attention_mask.to(config.device),
+            batch_max_scores, batch_max_ids = model(subword_input_ids= batch.input_ids,
+                                                    word_seq_lens = batch.word_seq_len,
+                                                    orig_to_tok_index = batch.orig_to_tok_index,
+                                                    attention_mask = batch.attention_mask,
                                                     is_train=False)
             batch_max_ids = accelerator.pad_across_processes(batch_max_ids, dim=1, pad_index=config.label2idx[PAD])
             batch_max_ids = accelerator.gather_for_metrics(batch_max_ids)
@@ -208,15 +205,17 @@ def evaluate_model(config: Config,
             predict_sequences = from_label_id_tensor_to_label_sequence(batch_ids = batch_max_ids,
                                                                       word_seq_lens = word_seq_lens,
                                                                       need_to_reverse=True,
-                                                                      idx2label=config.idx2label)
+                                                                      idx2label=config.idx2labels)
             all_predictions.extend(predict_sequences)
             gold_sequences = from_label_id_tensor_to_label_sequence(batch_ids = batch_label_ids,
                                                                     word_seq_lens = word_seq_lens,
                                                                     need_to_reverse=True,
-                                                                    idx2label=config.idx2label)
+                                                                    idx2label=config.idx2labels)
             all_golds.extend(gold_sequences)
 
     results = metric.compute(predictions=all_predictions, references=all_golds, scheme="IOBES")
+    for inst, pred_seq in zip(insts, all_predictions):
+        inst.prediction = pred_seq
     f1Scores = []
     if print_each_type_metric or config.print_detail_f1 or (config.earlystop_atr == "macro"):
         for key in results:
@@ -226,7 +225,7 @@ def evaluate_model(config: Config,
         if len(f1Scores) > 0:
             logger.info(f"[{name} set Total] Macro F1: {sum(f1Scores) / len(f1Scores):.2f}")
 
-    precision, recall, f1 = results['overall_precision'] * 100, results['overall_recall']* 100, results['overall_f1']* 100
+    precision, recall, fscore = results['overall_precision'] * 100, results['overall_recall']* 100, results['overall_f1']* 100
     logger.info(f"[{name} set Total] Prec.: {precision:.2f}, Rec.: {recall:.2f}, Micro F1: {fscore:.2f}")
 
     if config.earlystop_atr == "macro" and len(f1Scores) > 0:
@@ -263,7 +262,6 @@ def main():
         train_model(conf, conf.num_epochs, train_dataloader, dev_dataloader, test_dataloader)
     else:
         folder_name = f"model_files/{opt.model_folder}"
-        device = torch.device(opt.device)
         assert os.path.isdir(folder_name)
         f = open(folder_name + "/config.conf", 'rb')
         saved_config = pickle.load(f) # we use `label2idx` from old config, but test file, test number
@@ -275,7 +273,8 @@ def main():
         test_dataloader = DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=1,
                                      collate_fn=test_dataset.collate_fn)
         model = TransformersCRF(saved_config)
-        model.load_state_dict(torch.load(f"{folder_name}/lstm_crf.m", map_location=device))
+        model.load_state_dict(torch.load(f"{folder_name}/lstm_crf.m", map_location=torch.device('cpu')))
+        model, test_loader = accelerator.prepare(model, test_dataloader)
         model.eval()
         evaluate_model(config=saved_config, model=model, data_loader=test_dataloader, name="test mode", metric=metric,
                        print_each_type_metric=False)
