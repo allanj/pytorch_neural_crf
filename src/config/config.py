@@ -10,9 +10,6 @@ import torch
 from enum import Enum
 import os
 
-from termcolor import colored
-
-
 
 class ContextEmb(Enum):
     none = 0
@@ -87,7 +84,7 @@ class Config:
         else:
             exists = os.path.isfile(self.embedding_file)
             if not exists:
-                print(colored("[Warning] pretrain embedding file not exists, using random embedding",  'red'))
+                print("[Warning] pretrain embedding file not exists, using random embedding",  'red')
                 return None, self.embedding_dim
                 # raise FileNotFoundError("The embedding file does not exists")
         embedding_dim = -1

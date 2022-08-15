@@ -26,6 +26,19 @@ class Span:
     def __hash__(self):
         return hash((self.left, self.right, self.type))
 
+def from_label_id_tensor_to_label_sequence(batch_ids: torch.Tensor,
+                                           word_seq_lens: torch.Tensor,
+                                           need_to_reverse: bool,
+                                           idx2label: List[str]) -> List[List[str]]:
+    all_results = []
+    for idx in range(len(batch_ids)):
+        length = word_seq_lens[idx]
+        output = batch_ids[idx][:length].tolist()
+        if need_to_reverse:
+            output = output[::-1]
+            output = [idx2label[l] for l in output]
+        all_results.append(output)
+    return all_results
 
 def evaluate_batch_insts(batch_insts: List[Instance],
                          batch_pred_ids: torch.Tensor,
