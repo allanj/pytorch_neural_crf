@@ -209,7 +209,7 @@ def evaluate_model(config: Config,
             all_predictions.extend(predict_sequences)
             gold_sequences = from_label_id_tensor_to_label_sequence(batch_ids = batch_label_ids,
                                                                     word_seq_lens = word_seq_lens,
-                                                                    need_to_reverse=True,
+                                                                    need_to_reverse=False,
                                                                     idx2label=config.idx2labels)
             all_golds.extend(gold_sequences)
 

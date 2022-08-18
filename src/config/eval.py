@@ -36,7 +36,7 @@ def from_label_id_tensor_to_label_sequence(batch_ids: torch.Tensor,
         output = batch_ids[idx][:length].tolist()
         if need_to_reverse:
             output = output[::-1]
-            output = [idx2label[l] for l in output]
+        output = [idx2label[l] for l in output]
         all_results.append(output)
     return all_results
 
