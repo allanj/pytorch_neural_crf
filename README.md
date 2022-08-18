@@ -5,6 +5,7 @@ We achieve the SOTA performance on both CoNLL-2003 and OntoNotes 5.0 English dat
 and [benchmark results](/docs/transformers_benchmark.md) with fine-tuning BERT). 
 
 **Announcements**
+* We implemented distributed training for faster training
 * We implemented a [**Faster CRF**](/docs/fast_crf.md) module which allows **O(log N) inference and back-tracking**! 
 * [Benchmark results](/docs/transformers_benchmark.md) by fine-tuning BERT/Roberta**
 
