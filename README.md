@@ -20,23 +20,9 @@ More [details](/docs/transformers_benchmark.md)
 
 ### Requirements
 * Python >= 3.6 and PyTorch >= 1.6.0 (tested)
-* Transformers package from Huggingface (Required by using Transformers)
-
-If you use `conda`:
-
-```bash
-git clone https://github.com/allanj/pytorch_neural_crf.git
-# python > 3.6
-conda create -n pt_lstmcrf python=3.6
-conda activate pt_lstmcrf
-# kindly check https://pytorch.org for the suitable version of your machines
-conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
-pip install tqdm
-pip install allennlp ## required when we need to get the ELMo vectors
-pip install transformers
-pip install accelerate ## Used for distributed training
-pip install seqeval ## Used for distributed training evaluation
-```
+* pip install transformers
+* pip install accelerate (optional for distributed training)
+* pip install seqeval (optional, only used in evaluation while in distributed training)
 
 In the documentation below, we present two ways for users to run the code:
 1. Run the model via (Fine-tuning) BERT/Roberta/etc in Transformers package.
@@ -114,9 +100,9 @@ Using Word embedding or external contextualized embedding (ELMo/BERT) can be fou
 - [x] Integrate BERT as a module instead of just features.
 - [x] Clean up the code to better organization (e.g., `import` stuff)
 - [x] Benchmark experiments for Transformers' based models.
+- [x] Support FP-16 training/inference
+- [x] Support distributed training using accelerate
 - [ ] Releases some pre-trained NER models. 
-- [ ] Support FP-16 training/inference
 - [ ] Semi-CRF model support 
 
-### Contributors
-A huge thanks to [@yuchenlin](https://github.com/yuchenlin) for his contribution in this repo.
+
