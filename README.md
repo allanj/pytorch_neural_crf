@@ -50,7 +50,15 @@ change the embedder type as `roberta-large`.
     ```bash
     python transformers_trainer.py --device=cuda:0 --dataset=YourData --model_folder=saved_models --embedder_type=roberta-base
     ```
-2. **(Optional) Using other models in HuggingFace.**
+
+2. **Distributed Training** (If necessary)
+   1. We use huggingface `accelerate` package to enable distributed training. After you set the proper configuration of your distributed environment,
+      by `accelerate config`, you can easily run the following command for distributed training
+    ```bash
+    accelerate launch transformers_trainer_ddp.py {YOUR_OTHER_ARGUMENTS}
+    ```
+
+3. **(Optional) Using other models in HuggingFace.**
     1.  Run the main file with modified argument `embedder_type`:
         ```bash
         python trainer.py --embedder_type=bert-large-cased
