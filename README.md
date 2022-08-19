@@ -42,8 +42,9 @@ change the embedder type as `roberta-large`.
    1. We use huggingface `accelerate` package to enable distributed training. After you set the proper configuration of your distributed environment,
       by `accelerate config`, you can easily run the following command for distributed training
     ```bash
-    accelerate launch transformers_trainer_ddp.py {YOUR_OTHER_ARGUMENTS}
+    accelerate launch transformers_trainer_ddp.py --batch_size=30 {YOUR_OTHER_ARGUMENTS}
     ```
+   Note that, this `batch size` is actually __batch_size per GPU device__.
 
 3. **(Optional) Using other models in HuggingFace.**
     1.  Run the main file with modified argument `embedder_type`:
