@@ -94,7 +94,7 @@ def train_model(config: Config, epoch: int, train_loader: DataLoader, dev_loader
     logger.info(f"[Optimizer Info] Modify the optimizer info as you need.")
     logger.info(optimizer)
 
-    model, optimizer, train_loader, dev_loader, test_loader = accelerator.prepare(model, optimizer, train_loader, dev_loader, test_loader)
+    model, optimizer, train_loader, dev_loader, test_loader, scheduler = accelerator.prepare(model, optimizer, train_loader, dev_loader, test_loader, scheduler)
 
     metric = datasets.load_metric('seqeval')
     best_dev = [-1, 0]
