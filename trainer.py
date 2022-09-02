@@ -9,7 +9,7 @@ from typing import List
 from termcolor import colored
 import os
 from src.config.utils import load_elmo_vec
-from src.config import context_models, get_metric
+from src.config import get_metric
 import pickle
 import tarfile
 from tqdm import tqdm
