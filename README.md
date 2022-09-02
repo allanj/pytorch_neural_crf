@@ -22,6 +22,7 @@ More [details](/docs/transformers_benchmark.md)
 ### Requirements
 * Python >= 3.6 and PyTorch >= 1.6.0 (tested)
 * pip install transformers
+* pip install datasets
 * pip install accelerate (optional for distributed training)
 * pip install seqeval (optional, only used in evaluation while in distributed training)
 
