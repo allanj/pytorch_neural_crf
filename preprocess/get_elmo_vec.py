@@ -3,9 +3,13 @@
 #
 from typing import List
 
-from config.transformers_dataset import  Reader
+from src.data.ner_dataset import NERDataset
 import numpy as np
-from allennlp.commands.elmo import ElmoEmbedder
+try:
+    from allennlp.commands.elmo import ElmoEmbedder
+except ImportError as e:
+    pass
+
 import pickle
 import sys
 from tqdm import tqdm
@@ -29,7 +33,7 @@ def parse_sentence(elmo_vecs, mode:str="average") -> np.array:
         return elmo_vecs
 
 
-def load_elmo(cuda_device: int) -> ElmoEmbedder:
+def load_elmo(cuda_device: int):
     """
     Load a ElMo embedder
     :param cuda_device:
@@ -38,7 +42,7 @@ def load_elmo(cuda_device: int) -> ElmoEmbedder:
     return ElmoEmbedder(cuda_device=cuda_device)
 
 
-def read_parse_write(elmo: ElmoEmbedder, infile: str, outfile: str, mode: str = "average", batch_size=0) -> None:
+def read_parse_write(elmo, infile: str, outfile: str, mode: str = "average", batch_size=0) -> None:
     """
     Read the input files and write the vectors to the output files
     :param elmo: ELMo embedder
@@ -47,13 +51,12 @@ def read_parse_write(elmo: ElmoEmbedder, infile: str, outfile: str, mode: str = 
     :param mode: the mode of elmo vectors
     :return:
     """
-    reader = Reader()
-    insts = reader.read_file(infile, -1)
+    insts = NERDataset(infile, is_train=True).insts
     f = open(outfile, 'wb')
     all_vecs = []
     all_sents = []
     for inst in insts:
-        all_sents.append(inst.input.words)
+        all_sents.append(inst.ori_words)
     if batch_size < 1: # Not using batch
         for sent in tqdm(all_sents, desc="Elmo Embedding"):        
             elmo_vecs = elmo.embed_sentence(sent) 
