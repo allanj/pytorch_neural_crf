@@ -23,15 +23,16 @@ from tqdm import tqdm
 
 """
 Predictor usage example:
+NOTE: this is only used by glove/elmo
 
     sentence = "This is a sentence"
     # Or you can make a list of sentence:
     # sentence = ["This is a sentence", "This is the second sentence"]
     
     model_path = "english_model.tar.gz"
-    model = NERPredictor(model_path)
-    prediction = model.predict(sentence)
-    print(prediction)
+    predictor = NERPredictor("model_files/english_model.tar.gz")
+    res = predictor.predict(sentence)
+    print(res)
 
 """
 
