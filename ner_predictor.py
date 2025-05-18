@@ -1,4 +1,3 @@
-
 import pickle
 
 from src.model import NNCRF
@@ -7,6 +6,7 @@ import torch
 from src.config import ContextEmb
 from typing import List, Union, Dict
 import tarfile
+
 try:
     from allennlp.commands.elmo import ElmoEmbedder
 except ImportError as e:
@@ -36,8 +36,11 @@ NOTE: this is only used by glove/elmo
 
 """
 
-Feature = collections.namedtuple('Feature', 'words word_seq_len context_emb chars char_seq_lens labels')
+Feature = collections.namedtuple(
+    "Feature", "words word_seq_len context_emb chars char_seq_lens labels"
+)
 Feature.__new__.__defaults__ = (None,) * 6
+
 
 class NERPredictor:
     """
@@ -48,21 +51,22 @@ class NERPredictor:
     prediction = model.predict(sentence)
     """
 
-    def __init__(self, model_archived_file:str, cuda_device: str = "cpu"):
-
+    def __init__(self, model_archived_file: str, cuda_device: str = "cpu"):
         tar = tarfile.open(model_archived_file)
         tar.extractall()
         folder_name = tar.getnames()[0]
         tar.close()
 
-        f = open(folder_name + "/config.conf", 'rb')
+        f = open(folder_name + "/config.conf", "rb")
         self.conf = pickle.load(f)  # variables come out in the order you put them in
         # default batch size for conf is `10`
         f.close()
         device = torch.device(cuda_device)
         self.conf.device = device
         self.model = NNCRF(self.conf)
-        self.model.load_state_dict(torch.load(folder_name + "/lstm_crf.m", map_location = device))
+        self.model.load_state_dict(
+            torch.load(folder_name + "/lstm_crf.m", map_location=device)
+        )
         self.model.eval()
 
         if self.conf.static_context_emb != ContextEmb.none:
@@ -73,15 +77,20 @@ class NERPredictor:
             self.elmo = load_elmo(cuda_device)
 
     def predict_insts(self, batch: Feature) -> List[List[str]]:
-        batch_max_scores, batch_max_ids = self.model.decode(words = batch.words.to(self.conf.device),
-                                                            word_seq_lens = batch.word_seq_len.to(self.conf.device),
-                         context_emb=batch.context_emb.to(self.conf.device) if batch.context_emb is not None else None,
-                         chars = batch.chars.to(self.conf.device), char_seq_lens = batch.char_seq_lens.to(self.conf.device))
+        batch_max_scores, batch_max_ids = self.model.decode(
+            words=batch.words.to(self.conf.device),
+            word_seq_lens=batch.word_seq_len.to(self.conf.device),
+            context_emb=batch.context_emb.to(self.conf.device)
+            if batch.context_emb is not None
+            else None,
+            chars=batch.chars.to(self.conf.device),
+            char_seq_lens=batch.char_seq_lens.to(self.conf.device),
+        )
         predictions = []
         for idx in range(len(batch_max_ids)):
             length = batch.word_seq_len[idx]
             prediction = batch_max_ids[idx][:length].tolist()
-            prediction = prediction[::-1] ## reverse the Viterbi sequence
+            prediction = prediction[::-1]  ## reverse the Viterbi sequence
             prediction = [self.conf.idx2labels[l] for l in prediction]
             predictions.append(prediction)
         return predictions
@@ -117,12 +126,16 @@ class NERPredictor:
                     else:
                         char_id.append(self.conf.char2idx[UNK])
                 char_ids.append(char_id)
-            inst_ids.append(Feature(words=word_ids,
-                                         chars=char_ids,
-                                         word_seq_len=len(words),
-                                         char_seq_lens=char_seq_lens,
-                                         context_emb=inst.elmo_vec if hasattr(inst, "elmo_vec") else None,
-                                         labels=None))
+            inst_ids.append(
+                Feature(
+                    words=word_ids,
+                    chars=char_ids,
+                    word_seq_len=len(words),
+                    char_seq_lens=char_seq_lens,
+                    context_emb=inst.elmo_vec if hasattr(inst, "elmo_vec") else None,
+                    labels=None,
+                )
+            )
 
         return self._create_batch_data(inst_ids)
 
@@ -144,18 +157,29 @@ class NERPredictor:
                 chars.append(word_chars)
             for _ in range(max_seq_len - feature.word_seq_len):
                 chars.append([0] * max_char_seq_len)
-            labels = feature.labels + [0] * padding_length if feature.labels is not None else None
+            labels = (
+                feature.labels + [0] * padding_length
+                if feature.labels is not None
+                else None
+            )
 
-            insts[i] = Feature(words=np.asarray(words),
-                               chars=np.asarray(chars), char_seq_lens=np.asarray(char_seq_lens),
-                               context_emb=feature.context_emb,
-                               word_seq_len=feature.word_seq_len,
-                               labels=np.asarray(labels) if labels is not None else None)
-        results = Feature(*(default_collate(samples) if not check_all_obj_is_None(samples) else None for samples in zip(*insts)))
+            insts[i] = Feature(
+                words=np.asarray(words),
+                chars=np.asarray(chars),
+                char_seq_lens=np.asarray(char_seq_lens),
+                context_emb=feature.context_emb,
+                word_seq_len=feature.word_seq_len,
+                labels=np.asarray(labels) if labels is not None else None,
+            )
+        results = Feature(
+            *(
+                default_collate(samples) if not check_all_obj_is_None(samples) else None
+                for samples in zip(*insts)
+            )
+        )
         return results
 
     def predict(self, sentences: Union[str, List[str]]):
-
         sents = [sentences] if isinstance(sentences, str) else sentences
         insts = self.sents_to_insts(sents)
         if self.conf.static_context_emb != ContextEmb.none:
@@ -168,7 +192,9 @@ class NERPredictor:
             return predictions
 
 
-def parse_elmo_vector(elmo, insts: List[Instance], mode: str = "average", batch_size = 0) -> None:
+def parse_elmo_vector(
+    elmo, insts: List[Instance], mode: str = "average", batch_size=0
+) -> None:
     """
     Attach the instances into the sentence/
     :param elmo: ELMo embedder
@@ -185,12 +211,16 @@ def parse_elmo_vector(elmo, insts: List[Instance], mode: str = "average", batch_
             vec = parse_sentence(elmo_vecs, mode=mode)
             insts[i].elmo_vec = vec
     else:  # Batched prediction
-        for i, elmo_vecs in tqdm(enumerate(elmo.embed_sentences(all_sents, batch_size=batch_size)), desc="Elmo Embedding", total=len(all_sents)):
+        for i, elmo_vecs in tqdm(
+            enumerate(elmo.embed_sentences(all_sents, batch_size=batch_size)),
+            desc="Elmo Embedding",
+            total=len(all_sents),
+        ):
             vec = parse_sentence(elmo_vecs, mode=mode)
             insts[i].elmo_vec = vec
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     predictor = NERPredictor("model_files/english_model.tar.gz")
     res = predictor.predict("This is a demo")
     print(res)

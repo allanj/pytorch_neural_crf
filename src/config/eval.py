@@ -1,14 +1,15 @@
-
 from typing import List, Dict, Tuple, Any
 import torch
 from collections import defaultdict, Counter
 from src.data import Instance
+
 
 class Span:
     """
     A class of `Span` where we use it during evaluation.
     We construct spans for the convenience of evaluation.
     """
+
     def __init__(self, left: int, right: int, type: str):
         """
         A span compose of left, right (inclusive) and its entity label.
@@ -21,15 +22,22 @@ class Span:
         self.type = type
 
     def __eq__(self, other):
-        return self.left == other.left and self.right == other.right and self.type == other.type
+        return (
+            self.left == other.left
+            and self.right == other.right
+            and self.type == other.type
+        )
 
     def __hash__(self):
         return hash((self.left, self.right, self.type))
 
-def from_label_id_tensor_to_label_sequence(batch_ids: torch.Tensor,
-                                           word_seq_lens: torch.Tensor,
-                                           need_to_reverse: bool,
-                                           idx2label: List[str]) -> List[List[str]]:
+
+def from_label_id_tensor_to_label_sequence(
+    batch_ids: torch.Tensor,
+    word_seq_lens: torch.Tensor,
+    need_to_reverse: bool,
+    idx2label: List[str],
+) -> List[List[str]]:
     all_results = []
     for idx in range(len(batch_ids)):
         length = word_seq_lens[idx]
@@ -40,11 +48,14 @@ def from_label_id_tensor_to_label_sequence(batch_ids: torch.Tensor,
         all_results.append(output)
     return all_results
 
-def evaluate_batch_insts(batch_insts: List[Instance],
-                         batch_pred_ids: torch.Tensor,
-                         batch_gold_ids: torch.Tensor,
-                         word_seq_lens: torch.Tensor,
-                         idx2label: List[str]) -> Tuple[Dict, Dict, Dict]:
+
+def evaluate_batch_insts(
+    batch_insts: List[Instance],
+    batch_pred_ids: torch.Tensor,
+    batch_gold_ids: torch.Tensor,
+    word_seq_lens: torch.Tensor,
+    idx2label: List[str],
+) -> Tuple[Dict, Dict, Dict]:
     """
     Evaluate a batch of instances and handling the padding positions.
     :param batch_insts:  a batched of instances.
@@ -66,9 +77,9 @@ def evaluate_batch_insts(batch_insts: List[Instance],
         prediction = batch_pred_ids[idx][:length].tolist()
         prediction = prediction[::-1]
         output = [idx2label[l] for l in output]
-        prediction =[idx2label[l] for l in prediction]
+        prediction = [idx2label[l] for l in prediction]
         batch_insts[idx].prediction = prediction
-        #convert to span
+        # convert to span
         output_spans = set()
         start = -1
         for i in range(len(output)):
@@ -98,4 +109,8 @@ def evaluate_batch_insts(batch_insts: List[Instance],
         for span in correct_spans:
             batch_p_dict[span.type] += 1
 
-    return Counter(batch_p_dict), Counter(batch_total_predict_dict), Counter(batch_total_entity_dict)
+    return (
+        Counter(batch_p_dict),
+        Counter(batch_total_predict_dict),
+        Counter(batch_total_entity_dict),
+    )
